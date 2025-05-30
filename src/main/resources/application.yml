@@ -31,6 +31,10 @@ spring:
     issuer: dsada
     secret: your-very-strong-secret-key-which-is-at-least-32-characters-long
 
+  elasticsearch:
+    uris: http://localhost:9200
+
 logging:
   level:
-    root: DEBUG
+    org.elasticsearch.client: TRACE
+    root: WARN
