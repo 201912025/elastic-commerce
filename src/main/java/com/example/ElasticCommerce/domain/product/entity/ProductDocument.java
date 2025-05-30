@@ -15,6 +15,9 @@ public class ProductDocument {
     @Id
     private String id;
 
+    @Field(type = FieldType.Keyword)
+    private String productCode;
+
     @MultiField(mainField = @Field(type = FieldType.Text, analyzer = "products_name_analyzer"),
         otherFields = {
             @InnerField(suffix = "auto_complete", type = FieldType.Search_As_You_Type, analyzer = "nori")
@@ -38,16 +41,30 @@ public class ProductDocument {
     )
     private String category;
 
+    @Field(type = FieldType.Boolean)
+    private boolean available = true;
+
     @Builder
-    public ProductDocument(String name, String description, Integer price, String category) {
+    public ProductDocument(String productCode,
+                           String name,
+                           String description,
+                           Integer price,
+                           String category,
+                           boolean available) {
         this.id = UUID.randomUUID().toString();
+        this.productCode = productCode;
         this.name = name;
         this.description = description;
         this.price = price;
         this.category = category;
+        this.available = available;
     }
 
     public void updateRating(double updateRating) {
         this.rating = updateRating;
+    }
+
+    public void highlighting(String highlightedName) {
+        this.name = highlightedName;
     }
 }

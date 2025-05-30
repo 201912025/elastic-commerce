@@ -22,4 +22,17 @@ public class ProductController {
     public ResponseEntity<List<ProductResponse>> getProducts(@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(productService.getProducts(page, size));
     }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<ProductResponse>> searchProducts(
+            @RequestParam String query,
+            @RequestParam(required = false) String category,
+            @RequestParam(defaultValue = "0") double minPrice,
+            @RequestParam(defaultValue = "1000000000") double maxPrice,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        List<ProductResponse> products = productService.searchProducts(query, category, minPrice, maxPrice, page, size);
+        return ResponseEntity.ok(products);
+    }
 }

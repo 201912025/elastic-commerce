@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  elastic:
+    build:
+      context: .
+      dockerfile: Dockerfile.nori        # analysis-nori 플러그인 설치된 ES
+    image: custom-elasticsearch:8.17.4
+    ports:
+      - '9200:9200'
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.17.4
+    ports:
+      - '5601:5601'
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elastic:9200
+    depends_on:
+      - elastic
+
+  db:
+    image: mysql:8.0
+    container_name: mysql
+    ports:
+      - '3307:3306'
+    environment:
+      - MYSQL_ROOT_PASSWORD=worldcup7!
+      - MYSQL_DATABASE=elastic_commerce
+    volumes:
+      - db_data:/var/lib/mysql
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile   # Spring Boot fat-jar 빌드용 Dockerfile
+    image: elastic-commerce:latest
+    ports:
+      - '8080:8080'
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/elastic_commerce
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=worldcup7!
+      - SPRING_ELASTICSEARCH_URIS=http://elastic:9200
+      - SPRING_JPA_HIBERNATE_DDL-AUTO=update
+    depends_on:
+      - elastic
+      - db
+
+volumes:
+  db_data:
