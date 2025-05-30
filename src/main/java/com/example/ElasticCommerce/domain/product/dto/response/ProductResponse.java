@@ -9,8 +9,7 @@ public record ProductResponse(
         String name,
         String description,
         Integer price,
-        double rating,
-        Boolean available
+        double rating
 ) {
     public static ProductResponse from(Product p) {
         return new ProductResponse(
@@ -19,8 +18,7 @@ public record ProductResponse(
                 p.getName(),
                 p.getDescription(),
                 p.getPrice(),
-                p.getRating(),
-                p.getAvailable()
+                p.getRating()
         );
     }
 
@@ -31,8 +29,7 @@ public record ProductResponse(
                 doc.getName(),
                 doc.getDescription(),
                 doc.getPrice(),
-                doc.getRating(),
-                doc.isAvailable()
+                doc.getRating()
         );
     }
 }

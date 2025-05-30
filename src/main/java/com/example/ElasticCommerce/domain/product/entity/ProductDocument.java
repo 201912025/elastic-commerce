@@ -41,23 +41,18 @@ public class ProductDocument {
     )
     private String category;
 
-    @Field(type = FieldType.Boolean)
-    private boolean available = true;
-
     @Builder
     public ProductDocument(String productCode,
                            String name,
                            String description,
                            Integer price,
-                           String category,
-                           boolean available) {
+                           String category) {
         this.id = UUID.randomUUID().toString();
         this.productCode = productCode;
         this.name = name;
         this.description = description;
         this.price = price;
         this.category = category;
-        this.available = available;
     }
 
     public void updateRating(double updateRating) {

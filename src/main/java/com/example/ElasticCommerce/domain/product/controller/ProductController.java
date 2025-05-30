@@ -35,4 +35,10 @@ public class ProductController {
         List<ProductResponse> products = productService.searchProducts(query, category, minPrice, maxPrice, page, size);
         return ResponseEntity.ok(products);
     }
+
+    @GetMapping("/suggestions")
+    public ResponseEntity<List<String>> getSuggestions(@RequestParam String query) {
+        List<String> suggestions = productService.getSuggestions(query);
+        return ResponseEntity.ok(suggestions);
+    }
 }

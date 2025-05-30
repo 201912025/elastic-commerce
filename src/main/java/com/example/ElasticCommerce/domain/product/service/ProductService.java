@@ -42,6 +42,29 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
+    public List<String> getSuggestions(String query) {
+        Query multiMatchQuery = MultiMatchQuery.of(m -> m
+                .query(query)
+                .type(TextQueryType.BoolPrefix)
+                .fields("name.auto_complete", "name.auto_complete._index_prefix","name.auto_complete._2gram", "name.auto_complete._3gram")
+        )._toQuery();
+
+        NativeQuery nativeQuery = NativeQuery.builder()
+                                             .withQuery(multiMatchQuery)
+                                             .withPageable(PageRequest.of(0, 5))
+                                             .build();
+
+        SearchHits<ProductDocument> searchHits = this.elasticsearchOperations.search(nativeQuery, ProductDocument.class);
+
+        return searchHits.getSearchHits().stream()
+                         .map(hit -> {
+                             ProductDocument productDocument = hit.getContent();
+                             System.out.println(productDocument);
+                             return productDocument.getName();
+                         })
+                         .toList();
+    }
+
     public List<ProductResponse> searchProducts(
             String query,
             String category,

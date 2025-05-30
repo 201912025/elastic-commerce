@@ -32,9 +32,6 @@ public class Product extends BaseEntity {
     @Column(nullable = false)
     private double rating = 0.0;
 
-    @Column(nullable = false)
-    private Boolean available = true;
-
     @Builder
     public Product(String productCode, String name, String description, Integer price) {
         this.productCode = productCode;
