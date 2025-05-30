@@ -1,0 +1,36 @@
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  application:
+    name: elastic-commerce
+  datasource:
+    url: jdbc:mysql://localhost:3306/your_db
+    username: your_username
+    password: your_password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+        show_sql: true
+    open-in-view: false
+
+  jwt:
+    issuer: dsada
+    secret: your-very-strong-secret-key-which-is-at-least-32-characters-long
+
+logging:
+  level:
+    root: DEBUG
