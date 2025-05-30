@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -99,13 +100,25 @@ public class ProductService {
 
         SearchHits<ProductDocument> searchHits = this.elasticsearchOperations.search(nativeQuery, ProductDocument.class);
         List<ProductDocument> productDocuments = searchHits.getSearchHits().stream()
-                                          .map(hit -> {
-                                              ProductDocument productDocument = hit.getContent();
-                                              String highlightedName = hit.getHighlightField("name").get(0);
-                                              productDocument.highlighting(highlightedName);
-                                              return productDocument;
-                                          })
-                                          .toList();
+                                                           .map(hit -> {
+                                                               ProductDocument doc = hit.getContent();
+
+                                                               // 1) 전체 하이라이트 맵을 꺼내고
+                                                               Map<String, List<String>> highlightFields = hit.getHighlightFields();
+
+                                                               // 2) "name" 키가 있고, 리스트가 비어있지 않은지 확인
+                                                               if (highlightFields.containsKey("name")
+                                                                       && highlightFields.get("name") != null
+                                                                       && !highlightFields.get("name").isEmpty()) {
+
+                                                                   // 3) 첫 번째 하이라이트 스트링으로 세팅
+                                                                   String highlightedName = highlightFields.get("name").get(0);
+                                                                   doc.highlighting(highlightedName);
+                                                               }
+                                                               // 없으면 그냥 원본 name 유지
+                                                               return doc;
+                                                           })
+                                                           .toList();
 
         return productDocuments.stream()
                        .map(ProductResponse::from)
