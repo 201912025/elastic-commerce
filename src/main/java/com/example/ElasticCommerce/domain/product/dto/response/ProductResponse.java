@@ -11,14 +11,14 @@ public record ProductResponse(
         Integer price,
         double rating
 ) {
-    public static ProductResponse from(Product p) {
+    public static ProductResponse from(Product product) {
         return new ProductResponse(
-                p.getId(),
-                p.getProductCode(),
-                p.getName(),
-                p.getDescription(),
-                p.getPrice(),
-                p.getRating()
+                product.getId(),
+                product.getProductCode(),
+                product.getName(),
+                product.getDescription(),
+                product.getPrice(),
+                product.getRating()
         );
     }
 

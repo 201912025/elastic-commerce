@@ -1,20 +1,25 @@
-version: '3.8'
-
 services:
   elastic:
     build:
       context: .
       dockerfile: Dockerfile.nori        # analysis-nori 플러그인 설치된 ES
     image: custom-elasticsearch:8.17.4
+    container_name: elasticcommerce-elastic-1
     ports:
       - '9200:9200'
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - xpack.security.http.ssl.enabled=false
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health?timeout=5s | grep -q '\"status\":\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.17.4
+    container_name: elasticcommerce-kibana-1
     ports:
       - '5601:5601'
     environment:
@@ -33,11 +38,32 @@ services:
     volumes:
       - db_data:/var/lib/mysql
 
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: kafka
+    hostname: kafka
+    ports:
+      - '9092:9092'
+      - '9093:9093'
+    volumes:
+      - kafka_data:/bitnami/kafka
+    environment:
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    depends_on:
+      - db
+
   app:
     build:
       context: .
       dockerfile: Dockerfile   # Spring Boot fat-jar 빌드용 Dockerfile
     image: elastic-commerce:latest
+    container_name: elasticcommerce-app-1
     ports:
       - '8080:8080'
     environment:
@@ -45,10 +71,16 @@ services:
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=worldcup7!
       - SPRING_ELASTICSEARCH_URIS=http://elastic:9200
-      - SPRING_JPA_HIBERNATE_DDL-AUTO=update
+      - SPRING_JPA_HIBERNATE_DDL-AUTO=create
+      - SPRING_KAFKA_BOOTSTRAP-SERVERS=kafka:9092
     depends_on:
-      - elastic
-      - db
+      elastic:
+        condition: service_healthy
+      db:
+        condition: service_started
+      kafka:
+        condition: service_started
 
 volumes:
   db_data:
+  kafka_data:

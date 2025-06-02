@@ -1,14 +1,14 @@
 package com.example.ElasticCommerce.domain.product.controller;
 
+import com.example.ElasticCommerce.domain.product.dto.request.CreateProductRequestDTO;
 import com.example.ElasticCommerce.domain.product.dto.response.ProductResponse;
 import com.example.ElasticCommerce.domain.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.net.URI;
 import java.util.List;
 
 @RestController
@@ -40,5 +40,18 @@ public class ProductController {
     public ResponseEntity<List<String>> getSuggestions(@RequestParam String query) {
         List<String> suggestions = productService.getSuggestions(query);
         return ResponseEntity.ok(suggestions);
+    }
+
+    @PostMapping
+    public ResponseEntity<ProductResponse> createProduct(@RequestBody CreateProductRequestDTO createProductRequestDTO) {
+        ProductResponse productResponse = productService.createProduct(createProductRequestDTO);
+
+        URI location = ServletUriComponentsBuilder
+                .fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(productResponse.id())
+                .toUri();
+
+        return ResponseEntity.created(location).body(productResponse);
     }
 }

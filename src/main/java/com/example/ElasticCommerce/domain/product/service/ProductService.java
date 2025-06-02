@@ -1,6 +1,8 @@
 package com.example.ElasticCommerce.domain.product.service;
 
 import co.elastic.clients.elasticsearch._types.query_dsl.*;
+import com.example.ElasticCommerce.domain.product.dto.request.CreateProductRequestDTO;
+import com.example.ElasticCommerce.domain.product.dto.request.ProductElasticDTO;
 import com.example.ElasticCommerce.domain.product.dto.response.ProductResponse;
 import com.example.ElasticCommerce.domain.product.entity.Product;
 import com.example.ElasticCommerce.domain.product.entity.ProductDocument;
@@ -30,9 +32,8 @@ import java.util.stream.Collectors;
 public class ProductService {
 
     private final ProductRepository productRepository;
-    private final ProductDocumentRepository productDocumentRepository;
     private final ElasticsearchOperations elasticsearchOperations;
-
+    private final KafkaProducerService kafkaProducerService;
 
     public List<ProductResponse> getProducts(int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size);
@@ -146,5 +147,21 @@ public class ProductService {
         return productDocuments.stream()
                        .map(ProductResponse::from)
                        .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public ProductResponse createProduct(CreateProductRequestDTO createProductRequestDTO) {
+        Product product = Product.builder()
+                                         .productCode(createProductRequestDTO.productCode())
+                                         .name(createProductRequestDTO.name())
+                                         .description(createProductRequestDTO.description())
+                                         .price(createProductRequestDTO.price())
+                                         .build();
+        productRepository.save(product);
+        ProductResponse productResponse = ProductResponse.from(product);
+
+        kafkaProducerService.sendProduct("product-topic", ProductElasticDTO.from(productResponse));
+
+        return productResponse;
     }
 }

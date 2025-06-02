@@ -42,12 +42,13 @@ public class ProductDocument {
     private String category;
 
     @Builder
-    public ProductDocument(String productCode,
+    public ProductDocument(String id,
+                           String productCode,
                            String name,
                            String description,
                            Integer price,
                            String category) {
-        this.id = UUID.randomUUID().toString();
+        this.id = id;
         this.productCode = productCode;
         this.name = name;
         this.description = description;
