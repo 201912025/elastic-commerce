@@ -49,6 +49,10 @@ public class ProductElasticConsumer {
                                                      .name(dto.name())
                                                      .description(dto.description())
                                                      .price(dto.price())
+                                                     .category(dto.category())
+                                                     .stockQuantity(dto.stockQuantity())
+                                                     .brand(dto.brand())
+                                                     .imageUrl(dto.imageUrl())
                                                      .build();
                 productDocumentRepository.save(doc);
 
