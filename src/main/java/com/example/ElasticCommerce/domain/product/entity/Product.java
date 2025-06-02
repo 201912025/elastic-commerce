@@ -23,19 +23,37 @@ public class Product extends BaseEntity {
     @Column(nullable = false)
     private String name;
 
+    @Column(nullable = false, length = 20)
+    private String category;
+
+    @Column(nullable = false)
+    private Integer stockQuantity;
+
+    @Column(length = 50)
+    private String brand;
+
+    private String imageUrl;
+
+    @Column(nullable = false)
+    private boolean available = true;
+
     @Column(length = 1000)
     private String description;
 
     @Column(nullable = false)
-    private Integer price;
+    private Long price;
 
     @Column(nullable = false)
     private double rating = 0.0;
 
     @Builder
-    public Product(String productCode, String name, String description, Integer price) {
+    public Product(String productCode, String name, String category, Integer stockQuantity, String brand, String imageUrl, String description, Long price) {
         this.productCode = productCode;
         this.name = name;
+        this.category = category;
+        this.stockQuantity = stockQuantity;
+        this.brand = brand;
+        this.imageUrl = imageUrl;
         this.description = description;
         this.price = price;
     }

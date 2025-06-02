@@ -6,7 +6,6 @@ import com.example.ElasticCommerce.domain.product.dto.request.ProductElasticDTO;
 import com.example.ElasticCommerce.domain.product.dto.response.ProductResponse;
 import com.example.ElasticCommerce.domain.product.entity.Product;
 import com.example.ElasticCommerce.domain.product.entity.ProductDocument;
-import com.example.ElasticCommerce.domain.product.repository.ProductDocumentRepository;
 import com.example.ElasticCommerce.domain.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -24,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -151,15 +151,22 @@ public class ProductService {
 
     @Transactional
     public ProductResponse createProduct(CreateProductRequestDTO createProductRequestDTO) {
+        String rawUuid = UUID.randomUUID().toString().replace("-", "");
+        String productCode = rawUuid.substring(0, 8).toUpperCase();
+
         Product product = Product.builder()
-                                         .productCode(createProductRequestDTO.productCode())
+                                         .productCode(productCode)
                                          .name(createProductRequestDTO.name())
+                                         .category(createProductRequestDTO.category())
+                                         .stockQuantity(createProductRequestDTO.stockQuantity())
+                                         .brand(createProductRequestDTO.brand())
+                                         .imageUrl(createProductRequestDTO.imageUrl())
                                          .description(createProductRequestDTO.description())
                                          .price(createProductRequestDTO.price())
                                          .build();
         productRepository.save(product);
-        ProductResponse productResponse = ProductResponse.from(product);
 
+        ProductResponse productResponse = ProductResponse.from(product);
         kafkaProducerService.sendProduct("product-topic", ProductElasticDTO.from(productResponse));
 
         return productResponse;

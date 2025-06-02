@@ -6,8 +6,13 @@ public record ProductElasticDTO(
         String id,
         String productCode,
         String name,
+        String category,
+        int stockQuantity,
+        String brand,
+        String imageUrl,
+        boolean available,
         String description,
-        Integer price,
+        Long price,
         double rating
 ) {
     public static ProductElasticDTO from(ProductResponse productResponse) {
@@ -15,6 +20,11 @@ public record ProductElasticDTO(
                 productResponse.id().toString(),
                 productResponse.productCode(),
                 productResponse.name(),
+                productResponse.category(),
+                productResponse.stockQuantity(),
+                productResponse.brand(),
+                productResponse.imageUrl(),
+                productResponse.available(),
                 productResponse.description(),
                 productResponse.price(),
                 productResponse.rating()

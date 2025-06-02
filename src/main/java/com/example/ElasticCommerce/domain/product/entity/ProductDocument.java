@@ -5,8 +5,6 @@ import lombok.Builder;
 import lombok.Getter;
 import org.springframework.data.elasticsearch.annotations.*;
 
-import java.util.UUID;
-
 @Document(indexName = "products")
 @Setting(settingPath = "/elasticsearch/product-settings.json")
 @Getter
@@ -28,8 +26,8 @@ public class ProductDocument {
     @Field(type = FieldType.Text, analyzer = "products_description_analyzer")
     private String description;
 
-    @Field(type = FieldType.Integer)
-    private Integer price;
+    @Field(type = FieldType.Long)
+    private Long price;
 
     @Field(type = FieldType.Double)
     private double rating = 0.0;
@@ -41,19 +39,29 @@ public class ProductDocument {
     )
     private String category;
 
+    @Field(type = FieldType.Integer)
+    private Integer stockQuantity;
+
+    @Field(type = FieldType.Text, analyzer = "products_brand_analyzer")
+    private String brand;
+
+    @Field(type = FieldType.Keyword)
+    private String imageUrl;
+
+    @Field(type = FieldType.Boolean)
+    private Boolean available = true;
+
     @Builder
-    public ProductDocument(String id,
-                           String productCode,
-                           String name,
-                           String description,
-                           Integer price,
-                           String category) {
+    public ProductDocument(String id, String productCode, String name, String description, Long price, String category, Integer stockQuantity, String brand, String imageUrl) {
         this.id = id;
         this.productCode = productCode;
         this.name = name;
         this.description = description;
         this.price = price;
         this.category = category;
+        this.stockQuantity = stockQuantity;
+        this.brand = brand;
+        this.imageUrl = imageUrl;
     }
 
     public void updateRating(double updateRating) {

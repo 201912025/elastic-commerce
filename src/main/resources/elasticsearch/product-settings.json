@@ -41,6 +41,15 @@
           "nori_readingform",
           "lowercase"
         ]
+      },
+      "products_brand_analyzer": {
+        "char_filter": [],
+        "tokenizer": "nori_tokenizer",
+        "filter": [
+          "nori_part_of_speech",
+          "nori_readingform",
+          "lowercase"
+        ]
       }
     }
   }

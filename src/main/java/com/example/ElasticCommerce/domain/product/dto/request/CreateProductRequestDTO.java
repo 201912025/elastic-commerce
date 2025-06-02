@@ -1,9 +1,12 @@
 package com.example.ElasticCommerce.domain.product.dto.request;
 
 public record CreateProductRequestDTO(
-        String productCode,
         String name,
+        String category,
+        int stockQuantity,
+        String brand,
+        String imageUrl,
         String description,
-        int price
+        Long price
 ) {
 }
