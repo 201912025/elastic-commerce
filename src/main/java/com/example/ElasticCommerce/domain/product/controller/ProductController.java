@@ -1,6 +1,7 @@
 package com.example.ElasticCommerce.domain.product.controller;
 
 import com.example.ElasticCommerce.domain.product.dto.request.CreateProductRequestDTO;
+import com.example.ElasticCommerce.domain.product.dto.request.UpdateProductRequestDTO;
 import com.example.ElasticCommerce.domain.product.dto.response.ProductResponse;
 import com.example.ElasticCommerce.domain.product.service.ProductService;
 import jakarta.validation.Valid;
@@ -60,5 +61,14 @@ public class ProductController {
     public ResponseEntity<ProductResponse> getProductById(@PathVariable Long productId) {
         ProductResponse response = productService.getProductById(productId);
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{productId}")
+    public ResponseEntity<ProductResponse> updateProduct(
+            @PathVariable Long productId,
+            @RequestBody @Valid UpdateProductRequestDTO updateRequest
+    ) {
+        ProductResponse updated = productService.updateProduct(productId, updateRequest);
+        return ResponseEntity.ok(updated);
     }
 }

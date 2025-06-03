@@ -3,6 +3,7 @@ package com.example.ElasticCommerce.domain.product.service;
 import co.elastic.clients.elasticsearch._types.query_dsl.*;
 import com.example.ElasticCommerce.domain.product.dto.request.CreateProductRequestDTO;
 import com.example.ElasticCommerce.domain.product.dto.request.ProductElasticDTO;
+import com.example.ElasticCommerce.domain.product.dto.request.UpdateProductRequestDTO;
 import com.example.ElasticCommerce.domain.product.dto.response.ProductResponse;
 import com.example.ElasticCommerce.domain.product.entity.Product;
 import com.example.ElasticCommerce.domain.product.entity.ProductDocument;
@@ -178,6 +179,16 @@ public class ProductService {
     public ProductResponse getProductById(Long productId) {
         Product product = productRepository.findById(productId)
                                            .orElseThrow(() -> new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND));
+        return ProductResponse.from(product);
+    }
+
+    @Transactional
+    public ProductResponse updateProduct(Long productId, UpdateProductRequestDTO updateProductRequestDTO) {
+        Product product = productRepository.findById(productId)
+                                           .orElseThrow(() -> new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND));
+
+        product.update(updateProductRequestDTO);
+
         return ProductResponse.from(product);
     }
 

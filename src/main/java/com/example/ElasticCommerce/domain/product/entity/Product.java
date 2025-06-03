@@ -1,5 +1,6 @@
 package com.example.ElasticCommerce.domain.product.entity;
 
+import com.example.ElasticCommerce.domain.product.dto.request.UpdateProductRequestDTO;
 import com.example.ElasticCommerce.global.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -61,4 +62,34 @@ public class Product extends BaseEntity {
     public void updateRating(double updateRating) {
         this.rating = updateRating;
     }
+
+    public void update(UpdateProductRequestDTO dto) {
+        if (dto.name() != null) {
+            this.name = dto.name();
+        }
+        if (dto.category() != null) {
+            this.category = dto.category();
+        }
+        if (dto.stockQuantity() != null) {
+            this.stockQuantity = dto.stockQuantity();
+            // 재고를 0으로 설정하면 자동으로 unavailable(=품절) 처리
+            if (dto.stockQuantity() == 0) {
+                this.available = false;
+            }
+        }
+        if (dto.brand() != null) {
+            this.brand = dto.brand();
+        }
+        if (dto.imageUrl() != null) {
+            this.imageUrl = dto.imageUrl();
+        }
+        if (dto.description() != null) {
+            this.description = dto.description();
+        }
+        if (dto.price() != null) {
+            this.price = dto.price();
+        }
+    }
+
+
 }
