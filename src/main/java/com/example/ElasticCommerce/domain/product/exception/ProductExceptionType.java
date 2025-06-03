@@ -16,7 +16,9 @@ public enum ProductExceptionType implements ExceptionType{
     PRODUCT_CREATION_FAILED(2007, "상품 등록에 실패했습니다."),
     PRODUCT_UPDATE_FAILED(2008, "상품 수정에 실패했습니다."),
     PRODUCT_DELETE_FAILED(2009, "상품 삭제에 실패했습니다."),
-    PRICE_UPDATE_FORBIDDEN(2010, "상품 가격은 변경할 수 없습니다.");
+    PRICE_UPDATE_FORBIDDEN(2010, "상품 가격은 변경할 수 없습니다."),
+    INVALID_STOCK_QUANTITY(2011, "재고수량은 0 이상이어야 합니다.");
+
 
     private final int statusCode;
     private final String message;

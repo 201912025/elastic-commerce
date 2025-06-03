@@ -1,6 +1,7 @@
 package com.example.ElasticCommerce.domain.product.controller;
 
 import com.example.ElasticCommerce.domain.product.dto.request.CreateProductRequestDTO;
+import com.example.ElasticCommerce.domain.product.dto.request.StockUpdateRequestDTO;
 import com.example.ElasticCommerce.domain.product.dto.request.UpdateProductRequestDTO;
 import com.example.ElasticCommerce.domain.product.dto.response.ProductResponse;
 import com.example.ElasticCommerce.domain.product.service.ProductService;
@@ -76,5 +77,14 @@ public class ProductController {
     public ResponseEntity<Void> deleteProduct(@PathVariable Long productId) {
         productService.deleteProduct(productId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{productId}/stock")
+    public ResponseEntity<ProductResponse> updateStock(
+            @PathVariable Long productId,
+            @RequestBody @Valid StockUpdateRequestDTO stockUpdate
+    ) {
+        ProductResponse updated = productService.updateStock(productId, stockUpdate.stockQuantity());
+        return ResponseEntity.ok(updated);
     }
 }

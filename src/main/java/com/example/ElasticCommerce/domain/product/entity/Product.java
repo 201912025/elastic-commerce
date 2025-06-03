@@ -63,6 +63,14 @@ public class Product extends BaseEntity {
         this.rating = updateRating;
     }
 
+    public void updateStockQuantity(Integer newStockQuantity) {
+        this.stockQuantity = newStockQuantity;
+    }
+
+    public void closeProduct() {
+        this.available = false;
+    }
+
     public void update(UpdateProductRequestDTO dto) {
         if (dto.name() != null) {
             this.name = dto.name();
@@ -73,7 +81,7 @@ public class Product extends BaseEntity {
         if (dto.stockQuantity() != null) {
             this.stockQuantity = dto.stockQuantity();
             // 재고를 0으로 설정하면 자동으로 unavailable(=품절) 처리
-            if (dto.stockQuantity() == 0) {
+            if (dto.stockQuantity() <= 0) {
                 this.available = false;
             }
         }

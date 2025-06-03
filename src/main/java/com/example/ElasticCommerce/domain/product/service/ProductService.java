@@ -10,6 +10,7 @@ import com.example.ElasticCommerce.domain.product.entity.ProductDocument;
 import com.example.ElasticCommerce.domain.product.exception.ProductExceptionType;
 import com.example.ElasticCommerce.domain.product.repository.ProductRepository;
 import com.example.ElasticCommerce.domain.product.service.kafka.KafkaProducerService;
+import com.example.ElasticCommerce.global.exception.type.BadRequestException;
 import com.example.ElasticCommerce.global.exception.type.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -199,6 +200,23 @@ public class ProductService {
             throw new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND);
         }
         productRepository.deleteById(productId);
+    }
+
+    @Transactional
+    public ProductResponse updateStock(Long productId, Integer newStockQuantity) {
+        Product product = productRepository.findById(productId)
+                                           .orElseThrow(() -> new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND));
+
+        if (newStockQuantity < 0) {
+            throw new BadRequestException(ProductExceptionType.INVALID_STOCK_QUANTITY);
+        }
+        product.updateStockQuantity(newStockQuantity);
+
+        if (newStockQuantity == 0) {
+            product.closeProduct();
+        }
+
+        return ProductResponse.from(product);
     }
 
 }
