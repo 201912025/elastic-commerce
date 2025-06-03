@@ -6,8 +6,10 @@ import com.example.ElasticCommerce.domain.product.dto.request.ProductElasticDTO;
 import com.example.ElasticCommerce.domain.product.dto.response.ProductResponse;
 import com.example.ElasticCommerce.domain.product.entity.Product;
 import com.example.ElasticCommerce.domain.product.entity.ProductDocument;
+import com.example.ElasticCommerce.domain.product.exception.ProductExceptionType;
 import com.example.ElasticCommerce.domain.product.repository.ProductRepository;
 import com.example.ElasticCommerce.domain.product.service.kafka.KafkaProducerService;
+import com.example.ElasticCommerce.global.exception.type.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -172,4 +174,11 @@ public class ProductService {
 
         return productResponse;
     }
+
+    public ProductResponse getProductById(Long productId) {
+        Product product = productRepository.findById(productId)
+                                           .orElseThrow(() -> new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND));
+        return ProductResponse.from(product);
+    }
+
 }

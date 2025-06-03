@@ -55,4 +55,10 @@ public class ProductController {
 
         return ResponseEntity.created(location).body(productResponse);
     }
+
+    @GetMapping("/{productId}")
+    public ResponseEntity<ProductResponse> getProductById(@PathVariable Long productId) {
+        ProductResponse response = productService.getProductById(productId);
+        return ResponseEntity.ok(response);
+    }
 }
