@@ -32,7 +32,7 @@ public class KafkaProducerService {
                              log.error("Kafka 전송 실패", ex);
                          } else {
                              RecordMetadata meta = result.getRecordMetadata();
-                             log.info("전송 성공 topic={} partition={} offset={}",
+                             log.info("카프카 메시지 전송 성공 topic={} partition={} offset={}",
                                      meta.topic(), meta.partition(), meta.offset());
                          }
                      });
