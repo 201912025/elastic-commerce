@@ -3,6 +3,7 @@ package com.example.ElasticCommerce.domain.product.controller;
 import com.example.ElasticCommerce.domain.product.dto.request.CreateProductRequestDTO;
 import com.example.ElasticCommerce.domain.product.dto.response.ProductResponse;
 import com.example.ElasticCommerce.domain.product.service.ProductService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -43,7 +44,7 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<ProductResponse> createProduct(@RequestBody CreateProductRequestDTO createProductRequestDTO) {
+    public ResponseEntity<ProductResponse> createProduct(@RequestBody @Valid CreateProductRequestDTO createProductRequestDTO) {
         ProductResponse productResponse = productService.createProduct(createProductRequestDTO);
 
         URI location = ServletUriComponentsBuilder

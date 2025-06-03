@@ -9,6 +9,7 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.CommonErrorHandler;
+import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.util.backoff.FixedBackOff;
@@ -39,35 +40,37 @@ public class KafkaConsumerConfig {
 
         // 재시도 시마다 로그 남기기
         handler.setRetryListeners((record, ex, attempt) ->
-                log.warn("Kafka 레코드 재시도 #{}: topic={}, partition={}, offset={}",
+                log.warn(
+                        "Kafka 레코드 재시도 시도 #{} → topic={} / partition={} / offset={} / error={}",
                         attempt,
                         record.topic(),
                         record.partition(),
-                        record.offset()
+                        record.offset(),
+                        ex.getMessage()
                 )
         );
+
         return handler;
     }
 
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
-            ConsumerFactory<String, String> cf,
+            ConsumerFactory<String, String> consumerFactory,
             CommonErrorHandler errorHandler
     ) {
         ConcurrentKafkaListenerContainerFactory<String, String> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(cf);
+
+        factory.setConsumerFactory(consumerFactory);
 
         // 파티션 수만큼 스레드 병렬 처리
-        factory.setConcurrency(3);
+        factory.setConcurrency(6);
 
         // 배치 리스닝 활성화
         factory.setBatchListener(false);
 
         // 수동 커밋
-        factory.getContainerProperties().setAckMode(
-                org.springframework.kafka.listener.ContainerProperties.AckMode.MANUAL
-        );
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
 
         // 에러 핸들러 등록
         factory.setCommonErrorHandler(errorHandler);

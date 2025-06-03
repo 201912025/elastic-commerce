@@ -7,6 +7,7 @@ import com.example.ElasticCommerce.domain.product.dto.response.ProductResponse;
 import com.example.ElasticCommerce.domain.product.entity.Product;
 import com.example.ElasticCommerce.domain.product.entity.ProductDocument;
 import com.example.ElasticCommerce.domain.product.repository.ProductRepository;
+import com.example.ElasticCommerce.domain.product.service.kafka.KafkaProducerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
