@@ -71,6 +71,10 @@ public class Product extends BaseEntity {
         this.available = false;
     }
 
+    public void openProduct() {
+        this.available = true;
+    }
+
     public void update(UpdateProductRequestDTO dto) {
         if (dto.name() != null) {
             this.name = dto.name();

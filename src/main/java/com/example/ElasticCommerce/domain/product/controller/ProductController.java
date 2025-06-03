@@ -87,4 +87,16 @@ public class ProductController {
         ProductResponse updated = productService.updateStock(productId, stockUpdate.stockQuantity());
         return ResponseEntity.ok(updated);
     }
+
+    @PostMapping("/{productId}/open")
+    public ResponseEntity<ProductResponse> openProduct(@PathVariable Long productId) {
+        ProductResponse response = productService.openProduct(productId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{productId}/close")
+    public ResponseEntity<ProductResponse> closeProduct(@PathVariable Long productId) {
+        ProductResponse response = productService.closeProduct(productId);
+        return ResponseEntity.ok(response);
+    }
 }

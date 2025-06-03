@@ -219,4 +219,22 @@ public class ProductService {
         return ProductResponse.from(product);
     }
 
+    @Transactional
+    public ProductResponse openProduct(Long productId) {
+        Product product = productRepository.findById(productId)
+                                           .orElseThrow(() -> new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND));
+
+        product.openProduct();
+        return ProductResponse.from(product);
+    }
+
+    @Transactional
+    public ProductResponse closeProduct(Long productId) {
+        Product product = productRepository.findById(productId)
+                                           .orElseThrow(() -> new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND));
+
+        product.closeProduct();
+        return ProductResponse.from(product);
+    }
+
 }
