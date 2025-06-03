@@ -192,4 +192,13 @@ public class ProductService {
         return ProductResponse.from(product);
     }
 
+    @Transactional
+    public void deleteProduct(Long productId) {
+        boolean exists = productRepository.existsById(productId);
+        if (!exists) {
+            throw new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND);
+        }
+        productRepository.deleteById(productId);
+    }
+
 }

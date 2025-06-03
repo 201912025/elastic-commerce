@@ -71,4 +71,10 @@ public class ProductController {
         ProductResponse updated = productService.updateProduct(productId, updateRequest);
         return ResponseEntity.ok(updated);
     }
+
+    @DeleteMapping("/{productId}")
+    public ResponseEntity<Void> deleteProduct(@PathVariable Long productId) {
+        productService.deleteProduct(productId);
+        return ResponseEntity.noContent().build();
+    }
 }
