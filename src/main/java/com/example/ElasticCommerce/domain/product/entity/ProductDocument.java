@@ -30,7 +30,7 @@ public class ProductDocument {
     private Long price;
 
     @Field(type = FieldType.Double)
-    private double rating = 0.0;
+    private double rating;
 
     @MultiField(mainField = @Field(type = FieldType.Text, analyzer = "products_category_analyzer"),
             otherFields = {
@@ -49,23 +49,23 @@ public class ProductDocument {
     private String imageUrl;
 
     @Field(type = FieldType.Boolean)
-    private Boolean available = true;
+    private Boolean available;
 
     @Builder
-    public ProductDocument(String id, String productCode, String name, String description, Long price, String category, Integer stockQuantity, String brand, String imageUrl) {
+    public ProductDocument(String id, String productCode, String name, String description, Long price,
+                           double rating, String category, Integer stockQuantity, String brand, String imageUrl,
+                           boolean available) {
         this.id = id;
         this.productCode = productCode;
         this.name = name;
         this.description = description;
         this.price = price;
+        this.rating = rating;
         this.category = category;
         this.stockQuantity = stockQuantity;
         this.brand = brand;
         this.imageUrl = imageUrl;
-    }
-
-    public void updateRating(double updateRating) {
-        this.rating = updateRating;
+        this.available = available;
     }
 
     public void highlighting(String highlightedName) {

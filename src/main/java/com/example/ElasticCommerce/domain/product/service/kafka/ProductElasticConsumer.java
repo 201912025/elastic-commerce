@@ -11,14 +11,13 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
-
 @Component
 @Slf4j
 @RequiredArgsConstructor
 public class ProductElasticConsumer {
 
     private final ProductDocumentRepository productDocumentRepository;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper              objectMapper;
 
     @KafkaListener(
             topics           = "product-topic",
@@ -27,36 +26,43 @@ public class ProductElasticConsumer {
             concurrency      = "6"
     )
     public void consumeProduct(String message, Acknowledgment ack) {
-        log.info("Kafka 컨슈머가 product 메시지를 수신했습니다.");
-
-        // 1) JSON 파싱
         ProductElasticDTO dto;
         try {
             dto = objectMapper.readValue(message, ProductElasticDTO.class);
         } catch (JsonProcessingException e) {
-            log.error("메시지 파싱 오류: {}", message, e);
-            ack.acknowledge(); // 파싱 불가능 시 오프셋만 커밋
+            log.error("[Elasticsearch][PARSE_ERROR] 메시지 파싱 오류: {}", message, e);
+            ack.acknowledge();
             return;
         }
 
-        // 2) 비즈니스 로직 (Elasticsearch 저장)
-        ProductDocument doc = ProductDocument.builder()
-                                             .id(dto.id())
-                                             .productCode(dto.productCode())
-                                             .name(dto.name())
-                                             .description(dto.description())
-                                             .price(dto.price())
-                                             .category(dto.category())
-                                             .stockQuantity(dto.stockQuantity())
-                                             .brand(dto.brand())
-                                             .imageUrl(dto.imageUrl())
-                                             .build();
+        String id        = dto.id();
+        String eventType = dto.eventType();
 
-        productDocumentRepository.save(doc);
+        if ("DELETE".equals(eventType)) {
+            productDocumentRepository.deleteById(id);
+            log.info("[Elasticsearch][DELETE] 문서 삭제 완료: id={}", id);
 
-        // 정상 저장 시에만 커밋
+        } else {
+            // CREATE / UPDATE / OPEN / CLOSE / UPDATE_STOCK / UPDATE_RATING 등 모든 비-DELETE 이벤트: upsert
+            ProductDocument doc = ProductDocument.builder()
+                                                 .id(id)
+                                                 .productCode(dto.productCode())
+                                                 .name(dto.name())
+                                                 .description(dto.description())
+                                                 .price(dto.price())
+                                                 .category(dto.category())
+                                                 .stockQuantity(dto.stockQuantity())
+                                                 .brand(dto.brand())
+                                                 .imageUrl(dto.imageUrl())
+                                                 .available(dto.available())
+                                                 .rating(dto.rating())
+                                                 .build();
+
+            productDocumentRepository.save(doc);
+            log.info("[Elasticsearch][UPSERT][{}] 처리 완료: id={}", eventType, id);
+        }
+
         ack.acknowledge();
-        log.info("Elasticsearch 저장 성공, 오프셋 커밋: {}", dto.id());
+        log.info("[Elasticsearch] 오프셋 커밋: {}", id);
     }
 }
-

@@ -1,6 +1,6 @@
 package com.example.ElasticCommerce.domain.product.dto.request;
 
-import com.example.ElasticCommerce.domain.product.dto.response.ProductResponse;
+import com.example.ElasticCommerce.domain.product.entity.Product;
 
 public record ProductElasticDTO(
         String id,
@@ -13,21 +13,23 @@ public record ProductElasticDTO(
         boolean available,
         String description,
         Long price,
-        double rating
+        double rating,
+        String eventType
 ) {
-    public static ProductElasticDTO from(ProductResponse productResponse) {
+    public static ProductElasticDTO from(Product product, String eventType) {
         return new ProductElasticDTO(
-                productResponse.id().toString(),
-                productResponse.productCode(),
-                productResponse.name(),
-                productResponse.category(),
-                productResponse.stockQuantity(),
-                productResponse.brand(),
-                productResponse.imageUrl(),
-                productResponse.available(),
-                productResponse.description(),
-                productResponse.price(),
-                productResponse.rating()
+                product.getId().toString(),
+                product.getProductCode(),
+                product.getName(),
+                product.getCategory(),
+                product.getStockQuantity(),
+                product.getBrand(),
+                product.getImageUrl(),
+                product.isAvailable(),
+                product.getDescription(),
+                product.getPrice(),
+                product.getRating(),
+                eventType
         );
     }
 }

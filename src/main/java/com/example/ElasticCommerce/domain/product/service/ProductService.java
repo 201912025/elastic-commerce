@@ -172,7 +172,7 @@ public class ProductService {
         productRepository.save(product);
 
         ProductResponse productResponse = ProductResponse.from(product);
-        kafkaProducerService.sendProduct("product-topic", ProductElasticDTO.from(productResponse));
+        kafkaProducerService.sendProduct("product-topic", ProductElasticDTO.from(product, "CREATE"));
 
         return productResponse;
     }
@@ -190,15 +190,18 @@ public class ProductService {
 
         product.update(updateProductRequestDTO);
 
+        kafkaProducerService.sendProduct("product-topic", ProductElasticDTO.from(product, "UPDATE"));
+
         return ProductResponse.from(product);
     }
 
     @Transactional
     public void deleteProduct(Long productId) {
-        boolean exists = productRepository.existsById(productId);
-        if (!exists) {
-            throw new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND);
-        }
+        Product product = productRepository.findById(productId)
+                                           .orElseThrow(() -> new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND));
+
+        kafkaProducerService.sendProduct("product-topic", ProductElasticDTO.from(product, "DELETE"));
+
         productRepository.deleteById(productId);
     }
 
@@ -216,6 +219,8 @@ public class ProductService {
             product.closeProduct();
         }
 
+        kafkaProducerService.sendProduct("product-topic", ProductElasticDTO.from(product, "UPDATE_STOCK"));
+
         return ProductResponse.from(product);
     }
 
@@ -225,6 +230,9 @@ public class ProductService {
                                            .orElseThrow(() -> new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND));
 
         product.openProduct();
+
+        kafkaProducerService.sendProduct("product-topic", ProductElasticDTO.from(product, "OPEN"));
+
         return ProductResponse.from(product);
     }
 
@@ -234,7 +242,15 @@ public class ProductService {
                                            .orElseThrow(() -> new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND));
 
         product.closeProduct();
+
+        kafkaProducerService.sendProduct("product-topic", ProductElasticDTO.from(product, "CLOSE"));
+
         return ProductResponse.from(product);
+    }
+
+    @Transactional
+    public void updateRating(double rating) {
+
     }
 
 }
