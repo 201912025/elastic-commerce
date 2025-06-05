@@ -24,6 +24,10 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST}
+      port: ${SPRING_REDIS_PORT}
 
   jpa:
     hibernate:
@@ -47,4 +51,5 @@ spring:
 logging:
   level:
     org.elasticsearch.client: INFO
+    org.springframework.cache: trace
     root: INFO
