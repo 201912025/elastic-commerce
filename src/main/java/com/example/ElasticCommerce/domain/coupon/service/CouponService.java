@@ -76,11 +76,10 @@ public class CouponService {
         }
 
         // 3) 중복 발급 검사
-        /* userCouponRepository.findByUserIdAndCouponCode(userId, couponCode)
+        userCouponRepository.findByUserIdAndCouponCode(userId, couponCode)
                             .ifPresent(uc -> {
                                 throw new BadRequestException(CouponExceptionType.COUPON_DUPLICATE_ISSUE);
                             });
-                             */
 
         // 4) DB에서 User 조회 (없는 경우 Redis를 전혀 건드리지 않고 예외)
         User user = userRepository.findById(userId)
@@ -158,5 +157,32 @@ public class CouponService {
 
         // 7) 할인 금액 계산 후 리턴 (정액/정률 모두 지원)
         return coupon.calculateDiscountAmount(orderAmount);
+    }
+
+    @Transactional
+    public void issueUserCouponInsertOnly(IssueUserCouponRequest request) {
+        Long userId = request.userId();
+        String couponCode = request.couponCode();
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        // 1) DB에서 Coupon 조회 (유효성만 확인)
+        Coupon coupon = couponRepository.findByCouponCode(couponCode)
+                                        .orElseThrow(() -> new NotFoundException(CouponExceptionType.COUPON_NOT_FOUND));
+
+        // 2) 쿠폰 만료 여부 체크
+        if (coupon.isExpired(now)) {
+            throw new BadRequestException(CouponExceptionType.COUPON_EXPIRED);
+        }
+
+        // 3) DB에서 User 조회
+        User user = userRepository.findById(userId)
+                                  .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
+
+        // 4) 오직 UserCoupon INSERT만 수행 (quantity Update 제거)
+        UserCoupon userCoupon = UserCoupon.builder()
+                                          .coupon(coupon)
+                                          .user(user)
+                                          .build();
+        userCouponRepository.save(userCoupon);
     }
 }
