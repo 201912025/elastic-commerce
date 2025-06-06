@@ -24,4 +24,20 @@ public class KafkaTopicConfig {
                            .replicas(1)
                            .build();
     }
+
+    @Bean
+    public NewTopic couponTopic() {
+        return TopicBuilder.name("coupon-topic")
+                           .partitions(6)
+                           .replicas(1)
+                           .build();
+    }
+
+    @Bean
+    public NewTopic couponDltTopic() {
+        return TopicBuilder.name("coupon-topic.DLT")
+                           .partitions(6)
+                           .replicas(1)
+                           .build();
+    }
 }

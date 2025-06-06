@@ -1,14 +1,16 @@
 package com.example.ElasticCommerce.domain.coupon.service;
 
 import com.example.ElasticCommerce.domain.coupon.dto.ApplyCouponRequest;
+import com.example.ElasticCommerce.domain.coupon.dto.CouponKafkaDTO;
 import com.example.ElasticCommerce.domain.coupon.dto.IssueCouponRequest;
 import com.example.ElasticCommerce.domain.coupon.dto.IssueUserCouponRequest;
 import com.example.ElasticCommerce.domain.coupon.entity.Coupon;
 import com.example.ElasticCommerce.domain.coupon.entity.UserCoupon;
 import com.example.ElasticCommerce.domain.coupon.exception.CouponExceptionType;
-import com.example.ElasticCommerce.domain.coupon.repository.CouponStockRepository;
 import com.example.ElasticCommerce.domain.coupon.repository.CouponRepository;
+import com.example.ElasticCommerce.domain.coupon.repository.CouponStockRepository;
 import com.example.ElasticCommerce.domain.coupon.repository.UserCouponRepository;
+import com.example.ElasticCommerce.domain.coupon.service.kafka.CouponKafkaProducerService;
 import com.example.ElasticCommerce.domain.user.entity.User;
 import com.example.ElasticCommerce.domain.user.exception.UserExceptionType;
 import com.example.ElasticCommerce.domain.user.repository.UserRepository;
@@ -29,6 +31,7 @@ public class CouponService {
     private final UserCouponRepository userCouponRepository;
     private final UserRepository userRepository;
     private final CouponStockRepository couponStockRepository;
+    private final CouponKafkaProducerService couponKafkaProducerService;
     private final Clock clock;
 
     @Transactional
@@ -65,68 +68,44 @@ public class CouponService {
         String couponCode = issueUserCouponRequest.couponCode();
         LocalDateTime now = LocalDateTime.now(clock);
 
-        // ─── 1) DB에서 Coupon 조회 (유효성 체크 용도) ───
+        // ─── 1) DB에서 Coupon 조회(유효성 체크) ───
         Coupon coupon = couponRepository.findByCouponCode(couponCode)
                                         .orElseThrow(() -> new NotFoundException(CouponExceptionType.COUPON_NOT_FOUND));
 
-        // 2) 쿠폰 만료 여부 체크
+        // ─── 2) 쿠폰 만료 체크 ───
         if (coupon.isExpired(now)) {
             throw new BadRequestException(CouponExceptionType.COUPON_EXPIRED);
         }
 
-        // 3) 중복 발급 검사
+        // ─── 3) 중복 발급 검사 ───
         userCouponRepository.findByUserIdAndCouponCode(userId, couponCode)
                             .ifPresent(uc -> {
                                 throw new BadRequestException(CouponExceptionType.COUPON_DUPLICATE_ISSUE);
                             });
 
-        // 4) DB에서 User 조회 (없는 경우 Redis를 전혀 건드리지 않고 예외)
+        // ─── 4) DB에서 User 조회(없으면 예외) ───
         User user = userRepository.findById(userId)
                                   .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
 
-        // ─── [추가된 부분] ───
-        // 5a) Redis에 해당 couponCode 키가 있는지 확인
-        String redisKey = "coupon-stock:" + couponCode;
-        Boolean hasKey = couponStockRepository.existsKey(redisKey);
+        // ─── 5a) Redis에 재고 키가 있는지 확인하고 없으면 초기화 ───
+        Boolean hasKey = couponStockRepository.existsKey(couponCode);
         if (Boolean.FALSE.equals(hasKey)) {
-            // (키가 없으면) DB에 들어있는 quantity 값으로 초기화
+            // Redis에 쿠폰 재고가 셋업되어 있지 않으면, DB의 quantity 값으로 초기화
             couponStockRepository.setInitialStock(couponCode, coupon.getQuantity());
         }
 
-        // ─── 5) Redis DECR 실행 → 재고를 1 감소시키고 newStock을 얻어옴 ───
-        //     (테스트 전, 혹은 쿠폰 생성 시에 couponStockRepository.setInitialStock(couponCode, initialQuantity) 로 세팅 완료)
+        // ─── 5b) Redis에서 재고 DECR → 선점 ───
         Long newStock = couponStockRepository.decrement(couponCode);
-
-        // 6) newStock < 0 → 이미 재고가 없는 상태(= Redis 키가 0이었는데 DECR 됐으므로 -1)
         if (newStock < 0) {
-            // “재고 부족” 처리, DECR로 –1 빠진 값을 다시 +1(=0)으로 복구
+            // 이미 재고가 없는 상태이므로, Redis 재고 복구 후 예외
             couponStockRepository.increment(couponCode);
             throw new BadRequestException(CouponExceptionType.COUPON_OUT_OF_STOCK);
         }
-        //    newStock ≥ 0이면 “발급 허용”
+        // Redis 선점 성공(newStock >= 0)이면, 발급 허용
 
-        try {
-            // ─── 7) DB에서 원자적 UPDATE로 quantity를 1 감소 ───
-            int updatedRows = couponRepository.decrementQuantity(couponCode);
-            if (updatedRows != 1) {
-                // DB 재고가 이미 0이었거나, 업데이트가 안 된 경우
-                // Redis에서 방금 DECR한 값을 다시 INCR 해서 복구
-                couponStockRepository.increment(couponCode);
-                throw new BadRequestException(CouponExceptionType.COUPON_OUT_OF_STOCK);
-            }
-
-            // ─── 8) UserCoupon 에 발급 내역 저장 ───
-            UserCoupon userCoupon = UserCoupon.builder()
-                                              .coupon(coupon)
-                                              .user(user)
-                                              .build();
-            userCouponRepository.save(userCoupon);
-
-        } catch (RuntimeException ex) {
-            // ─── 9) DB 저장 중 예외 발생 시, Redis 재고를 복구 ───
-            couponStockRepository.increment(couponCode);
-            throw ex;
-        }
+        // ─── 6) Kafka로 메시지 발행만 하고, 실제 DB 업데이트는 컨슈머가 처리 ───
+        CouponKafkaDTO kafkaDTO = CouponKafkaDTO.from(userId, coupon, now);
+        couponKafkaProducerService.sendCoupon("coupon-topic", kafkaDTO);
     }
 
     @Transactional
