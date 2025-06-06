@@ -76,10 +76,11 @@ public class CouponService {
         }
 
         // 3) 중복 발급 검사
-        userCouponRepository.findByUserIdAndCouponCode(userId, couponCode)
+        /* userCouponRepository.findByUserIdAndCouponCode(userId, couponCode)
                             .ifPresent(uc -> {
                                 throw new BadRequestException(CouponExceptionType.COUPON_DUPLICATE_ISSUE);
                             });
+                             */
 
         // 4) DB에서 User 조회 (없는 경우 Redis를 전혀 건드리지 않고 예외)
         User user = userRepository.findById(userId)
