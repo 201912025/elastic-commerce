@@ -58,6 +58,15 @@ services:
     depends_on:
       - db
 
+  redis:
+    image: redis:7.0
+    container_name: elasticcommerce-redis-1
+    ports:
+      - '6379:6379'
+    command: [ "redis-server", "--appendonly", "yes" ]
+    volumes:
+      - redis_data:/data
+
   app:
     build:
       context: .
@@ -73,7 +82,8 @@ services:
       - SPRING_ELASTICSEARCH_URIS=http://elastic:9200
       - SPRING_JPA_HIBERNATE_DDL-AUTO=update
       - SPRING_KAFKA_BOOTSTRAP-SERVERS=kafka:9092
-
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
     depends_on:
       elastic:
         condition: service_healthy
@@ -81,7 +91,10 @@ services:
         condition: service_started
       kafka:
         condition: service_started
+      redis:
+        condition: service_started
 
 volumes:
   db_data:
   kafka_data:
+  redis_data:

@@ -32,7 +32,11 @@ dependencies {
 	implementation 'org.springframework.kafka:spring-kafka'
 
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-	testImplementation 'com.github.kstyrc:embedded-redis:0.6'
+
+	testImplementation "org.testcontainers:testcontainers:1.19.0"
+	testImplementation "org.testcontainers:junit-jupiter:1.19.0"
+	testImplementation "com.redis:testcontainers-redis:2.2.2"
+
 
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
