@@ -56,6 +56,7 @@ public class CouponService {
                               .build();
 
         couponRepository.save(coupon);
+        couponStockRepository.setIfAbsent(request.couponCode(), request.quantity());
         return coupon.getCouponId();
     }
 
@@ -84,14 +85,7 @@ public class CouponService {
         User user = userRepository.findById(userId)
                                   .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
 
-        // ─── [추가된 부분] ───
-        // 5a) Redis에 해당 couponCode 키가 있는지 확인
-        String redisKey = "coupon-stock:" + couponCode;
-        Boolean hasKey = couponStockRepository.existsKey(redisKey);
-        if (Boolean.FALSE.equals(hasKey)) {
-            // (키가 없으면) DB에 들어있는 quantity 값으로 초기화
-            couponStockRepository.setInitialStock(couponCode, coupon.getQuantity());
-        }
+        couponStockRepository.setIfAbsent(couponCode, coupon.getQuantity());
 
         // ─── 5) Redis DECR 실행 → 재고를 1 감소시키고 newStock을 얻어옴 ───
         //     (테스트 전, 혹은 쿠폰 생성 시에 couponStockRepository.setInitialStock(couponCode, initialQuantity) 로 세팅 완료)

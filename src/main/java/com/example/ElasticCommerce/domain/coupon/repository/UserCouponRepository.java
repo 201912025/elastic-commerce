@@ -17,4 +17,17 @@ public interface UserCouponRepository extends JpaRepository<UserCoupon, Long> {
             @Param("userId") Long userId,
             @Param("couponCode") String couponCode
     );
+
+    @Query("""
+        select uc
+        from UserCoupon uc
+        join fetch uc.coupon c
+        join fetch uc.user u
+        where u.userId = :userId
+          and c.couponCode = :couponCode
+        """)
+    Optional<UserCoupon> findByUserIdAndCouponCodeFetchCoupon(
+            @Param("userId") Long userId,
+            @Param("couponCode") String couponCode
+    );
 }

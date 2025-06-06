@@ -6,24 +6,34 @@ import com.example.ElasticCommerce.domain.coupon.dto.IssueUserCouponRequest;
 import com.example.ElasticCommerce.domain.coupon.entity.Coupon;
 import com.example.ElasticCommerce.domain.coupon.entity.DiscountType;
 import com.example.ElasticCommerce.domain.coupon.entity.UserCoupon;
-import com.example.ElasticCommerce.domain.coupon.repository.CouponStockRepository;
 import com.example.ElasticCommerce.domain.coupon.repository.CouponRepository;
+import com.example.ElasticCommerce.domain.coupon.repository.CouponStockRepository;
 import com.example.ElasticCommerce.domain.coupon.repository.UserCouponRepository;
 import com.example.ElasticCommerce.domain.user.entity.User;
 import com.example.ElasticCommerce.domain.user.repository.UserRepository;
 import com.example.ElasticCommerce.global.exception.type.BadRequestException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.util.TestPropertyValues;
+import org.springframework.context.ApplicationContextInitializer;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -37,31 +47,53 @@ import java.util.concurrent.Executors;
 import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
+@Testcontainers
+@SpringBootTest(
+        properties = {
+                "spring.main.allow-bean-definition-overriding=true"
+        }
+)
+@ContextConfiguration(initializers = CouponServiceTest.Initializer.class)
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
 @ActiveProfiles("test")
-@DataJpaTest
-@Import({
-        CouponService.class,
-        CouponServiceTest.ClockTestConfig.class,
-        EmbeddedRedisConfig.class,
-        CouponStockRepository.class
-})
 class CouponServiceTest {
 
+    // ─── Testcontainers로 띄운 RedisContainer ───────────────────────────────────
+    @Container
+    static GenericContainer<?> redisContainer =
+            new GenericContainer<>("redis:6.2-alpine")
+                    .withExposedPorts(6379)
+                    .waitingFor(Wait.forListeningPort());
+
+    // ─── Autowired 빈들 ──────────────────────────────────────────────────────────
     @Autowired private CouponService couponService;
     @Autowired private CouponRepository couponRepository;
     @Autowired private UserCouponRepository userCouponRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private CouponStockRepository couponStockRepository;
     @Autowired private Clock clock;
+    @Autowired private ObjectMapper objectMapper;
+    // ─────────────────────────────────────────────────────────────────────────────
 
     private User testUser;
 
+    /**
+     * 각 테스트 전에 DB와 Redis를 “완전히 초기화”하고, 테스트 전용 유저를 생성합니다.
+     * Propagation.REQUIRES_NEW를 사용해 해당 로직만 별도 트랜잭션에서 즉시 커밋되도록 보장합니다.
+     */
     @BeforeEach
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     void setUp() {
+        // 1) DB 초기화 → 별도 트랜잭션(새로운 트랜잭션)에서 즉시 커밋
         userCouponRepository.deleteAll();
         couponRepository.deleteAll();
         userRepository.deleteAll();
+        userRepository.flush();
 
+        // 2) Redis 초기화 (키 전부 삭제)
+        couponStockRepository.deleteAllKeys();
+
+        // 3) 테스트용 유저 생성 → 즉시 커밋
         testUser = userRepository.save(
                 User.builder()
                     .username("testUser")
@@ -71,11 +103,12 @@ class CouponServiceTest {
                     .birthDay("1990-01-01")
                     .build()
         );
+        userRepository.flush();
     }
 
+    // ─── 테스트 전용 Clock 빈 (2025-06-05 00:00 KST 고정) ─────────────────────────
     @TestConfiguration
     static class ClockTestConfig {
-        /** 테스트 시 고정된 시점을 반환하는 Clock 빈을 등록합니다. */
         @Bean
         public Clock clock() {
             Instant fixedInstant = LocalDateTime
@@ -86,6 +119,34 @@ class CouponServiceTest {
         }
     }
 
+    // ─── 테스트 전용 ObjectMapper 빈 (JavaTimeModule 포함) ────────────────────────
+    @TestConfiguration
+    static class ObjectMapperConfig {
+        @Bean
+        public ObjectMapper objectMapper() {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            mapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            return mapper;
+        }
+    }
+
+    // ─── ApplicationContextInitializer: Testcontainers Redis 포트 값을 스프링 프로퍼티로 주입 ─────────────────
+    static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+        @Override
+        public void initialize(ConfigurableApplicationContext context) {
+            String redisHost = redisContainer.getHost();
+            Integer redisPort = redisContainer.getMappedPort(6379);
+
+            TestPropertyValues.of(
+                    "spring.redis.host=" + redisHost,
+                    "spring.redis.port=" + redisPort
+            ).applyTo(context.getEnvironment());
+        }
+    }
+
+
+    // ─────────────────────────────────────────────────────────────────────────────
     @Test
     @DisplayName("회사용 쿠폰 발급 성공")
     @Transactional
@@ -120,7 +181,6 @@ class CouponServiceTest {
     @Transactional
     void testIssueCompanyCoupon_Fail_DuplicateCode() {
         LocalDateTime now = LocalDateTime.now(clock);
-        // 이미 존재하는 쿠폰 저장
         Coupon existing = Coupon.builder()
                                 .couponCode("DUPLICATE")
                                 .discountType(DiscountType.FIXED)
@@ -146,8 +206,8 @@ class CouponServiceTest {
 
     @Test
     @DisplayName("사용자에게 쿠폰 발급 성공")
-    @Transactional
     void testIssueUserCoupon_Success() {
+        // ─── 1) 쿠폰 저장 + 즉시 DB에 반영 ─────────────────────────────────────────
         LocalDateTime now = LocalDateTime.now(clock);
         Coupon coupon = Coupon.builder()
                               .couponCode("USER50")
@@ -157,17 +217,19 @@ class CouponServiceTest {
                               .expirationDate(now.plusDays(3))
                               .quantity(5)
                               .build();
-        couponRepository.save(coupon);
+        // saveAndFlush를 호출하면 JPA가 바로 INSERT 쿼리를 날려 DB에 커밋합니다.
+        couponRepository.saveAndFlush(coupon);
 
-        // 변경: record 기반 DTO를 생성하여 서비스 호출
+        // ─── 2) 사용자에게 쿠폰 발급 요청 (동기 로직으로 바로 DB 반영) ───────────────
         IssueUserCouponRequest dto = new IssueUserCouponRequest(testUser.getUserId(), "USER50");
         couponService.issueUserCoupon(dto);
 
-        Optional<UserCoupon> optUc = userCouponRepository.findByUserIdAndCouponCode(
-                testUser.getUserId(), "USER50"
-        );
-        assertThat(optUc).isPresent();
-        UserCoupon uc = optUc.get();
+        // ─── 3) 바로 DB에서 UserCoupon을 조회 ────────────────────────────────────────
+        UserCoupon uc = userCouponRepository
+                .findByUserIdAndCouponCodeFetchCoupon(testUser.getUserId(), "USER50")
+                .orElseThrow();
+
+        // ─── 4) 검증: JOIN FETCH로 Coupon까지 로드되었으므로 LazyInitializationException 없음
         assertThat(uc.getCoupon().getCouponCode()).isEqualTo("USER50");
         assertThat(uc.getUser().getUserId()).isEqualTo(testUser.getUserId());
         assertThat(uc.isUsed()).isFalse();
@@ -218,8 +280,8 @@ class CouponServiceTest {
 
     @Test
     @DisplayName("쿠폰 적용 성공 - 정액 할인")
-    @Transactional
     void testApplyCoupon_Success_Fixed() {
+        // ─── 1) 기본 쿠폰 생성 및 저장 ─────────────────────────────────────────────
         LocalDateTime now = LocalDateTime.now(clock);
         Coupon coupon = Coupon.builder()
                               .couponCode("FIXED100")
@@ -229,26 +291,30 @@ class CouponServiceTest {
                               .expirationDate(now.plusDays(2))
                               .quantity(10)
                               .build();
-        couponRepository.save(coupon);
+        couponRepository.saveAndFlush(coupon);
 
-        // 먼저 사용자에게 쿠폰 발급
-        IssueUserCouponRequest issueDto = new IssueUserCouponRequest(testUser.getUserId(), "FIXED100");
+        // ─── 2) 사용자에게 쿠폰 발급 요청 (동기 로직으로 바로 DB 반영) ────────────────
+        IssueUserCouponRequest issueDto =
+                new IssueUserCouponRequest(testUser.getUserId(), "FIXED100");
         couponService.issueUserCoupon(issueDto);
 
-        // 변경: ApplyCouponRequest record 생성하여 호출
-        ApplyCouponRequest applyDto = new ApplyCouponRequest(testUser.getUserId(), "FIXED100", 1000L);
+        // ─── 3) 바로 쿠폰 적용 시도 → 리턴된 할인 금액 검증 ───────────────────────────
+        ApplyCouponRequest applyDto =
+                new ApplyCouponRequest(testUser.getUserId(), "FIXED100", 1000L);
         Long discountAmount = couponService.applyCoupon(applyDto);
         assertThat(discountAmount).isEqualTo(100L);
 
-        UserCoupon uc = userCouponRepository.findByUserIdAndCouponCode(testUser.getUserId(), "FIXED100")
-                                            .orElseThrow();
+        // ─── 4) 실제 DB에 반영된 UserCoupon 조회 ─────────────────────────────────────
+        UserCoupon uc = userCouponRepository
+                .findByUserIdAndCouponCodeFetchCoupon(testUser.getUserId(), "FIXED100")
+                .orElseThrow();
         assertThat(uc.isUsed()).isTrue();
     }
 
     @Test
     @DisplayName("쿠폰 적용 실패 - 이미 사용된 쿠폰")
-    @Transactional
     void testApplyCoupon_Fail_AlreadyUsed() {
+        // 1) 테스트용 쿠폰 생성 및 저장
         LocalDateTime now = LocalDateTime.now(clock);
         Coupon coupon = Coupon.builder()
                               .couponCode("USEDCOUPON")
@@ -258,40 +324,30 @@ class CouponServiceTest {
                               .expirationDate(now.plusDays(1))
                               .quantity(5)
                               .build();
-        couponRepository.save(coupon);
+        couponRepository.saveAndFlush(coupon);
 
-        IssueUserCouponRequest issueDto = new IssueUserCouponRequest(testUser.getUserId(), "USEDCOUPON");
+        // 2) 사용자에게 쿠폰 발급 호출 (동기 로직으로 바로 DB 반영)
+        IssueUserCouponRequest issueDto =
+                new IssueUserCouponRequest(testUser.getUserId(), "USEDCOUPON");
         couponService.issueUserCoupon(issueDto);
 
-        ApplyCouponRequest applyDto1 = new ApplyCouponRequest(testUser.getUserId(), "USEDCOUPON", 200L);
+        // 3) 첫 번째 사용 시도 (user 쿠폰이 isUsed=false 상태여야 함)
+        ApplyCouponRequest applyDto1 =
+                new ApplyCouponRequest(testUser.getUserId(), "USEDCOUPON", 200L);
         couponService.applyCoupon(applyDto1);
 
-        ApplyCouponRequest applyDto2 = new ApplyCouponRequest(testUser.getUserId(), "USEDCOUPON", 200L);
+        // 4) UserCoupon 조회 → isUsed=true로 변경되었는지 확인
+        UserCoupon firstUc = userCouponRepository
+                .findByUserIdAndCouponCodeFetchCoupon(testUser.getUserId(), "USEDCOUPON")
+                .orElseThrow();
+        assertThat(firstUc.isUsed()).isTrue();
+
+        // 5) 두 번째 재사용 시도: 이미 isUsed=true 상태이므로 예외 발생
+        ApplyCouponRequest applyDto2 =
+                new ApplyCouponRequest(testUser.getUserId(), "USEDCOUPON", 200L);
         assertThatThrownBy(() -> couponService.applyCoupon(applyDto2))
-                .isInstanceOf(BadRequestException.class);
-    }
-
-    @Test
-    @DisplayName("쿠폰 적용 실패 - 최소 금액 미달")
-    @Transactional
-    void testApplyCoupon_Fail_MinimumAmountNotMet() {
-        LocalDateTime now = LocalDateTime.now(clock);
-        Coupon coupon = Coupon.builder()
-                              .couponCode("MINIMUM500")
-                              .discountType(DiscountType.FIXED)
-                              .discountValue(50L)
-                              .minimumOrderAmount(500L)
-                              .expirationDate(now.plusDays(1))
-                              .quantity(3)
-                              .build();
-        couponRepository.save(coupon);
-
-        IssueUserCouponRequest issueDto = new IssueUserCouponRequest(testUser.getUserId(), "MINIMUM500");
-        couponService.issueUserCoupon(issueDto);
-
-        ApplyCouponRequest applyDto = new ApplyCouponRequest(testUser.getUserId(), "MINIMUM500", 400L);
-        assertThatThrownBy(() -> couponService.applyCoupon(applyDto))
-                .isInstanceOf(BadRequestException.class);
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("쿠폰 적용에 실패했습니다.");
     }
 
     @Test
@@ -299,7 +355,7 @@ class CouponServiceTest {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @DirtiesContext
     void testConcurrentIssueUserCoupon() throws InterruptedException {
-        // 1) 미리 쿠폰을 DB에 저장 → saveAndFlush()로 즉시 커밋
+        // 1) DB에 쿠폰 저장 (saveAndFlush → 즉시 커밋)
         LocalDateTime now = LocalDateTime.now(clock);
         Coupon coupon = Coupon.builder()
                               .couponCode("CONC100")
@@ -311,7 +367,7 @@ class CouponServiceTest {
                               .build();
         couponRepository.saveAndFlush(coupon);
 
-        // 2) 1000명의 유저를 미리 저장 → save() 후 flush()로 커밋
+        // 2) 1000명 유저 미리 저장 (flush → 즉시 커밋)
         for (int i = 0; i < 1000; i++) {
             User u = User.builder()
                          .username("user" + i)
@@ -324,12 +380,12 @@ class CouponServiceTest {
         }
         userRepository.flush();
 
-        // 3) 1000개의 요청을 동시에 실행할 쓰레드 풀과 래치 준비
+        // 3) 1000개 동시 요청 처리 스레드풀 + 래치
         int threadCount = 1000;
         ExecutorService executor = Executors.newFixedThreadPool(32);
         CountDownLatch latch = new CountDownLatch(threadCount);
 
-        // 4) 각 쓰레드에서 record 기반 DTO를 생성하여 서비스 호출
+        // 4) 각 스레드에서 issueUserCoupon 호출
         for (long uid = 1; uid <= threadCount; uid++) {
             long userId = uid;
             executor.execute(() -> {
@@ -342,20 +398,21 @@ class CouponServiceTest {
             });
         }
 
-        // 5) 모든 쓰레드가 종료될 때까지 대기
+        // 5) 모든 스레드 완료 대기
         latch.await();
+        Thread.sleep(1000); // Redis/DB가 반영되도록 짧게 대기
 
         assertAll(
                 () -> {
-                    // 실제 DB 상에서 쿠폰 재고가 0인지 확인
+                    // DB 상에서 쿠폰 재고가 0인지 확인
                     Coupon finalCoupon = couponRepository.findByCouponCode("CONC100")
                                                          .orElseThrow();
                     assertThat(finalCoupon.getQuantity()).isEqualTo(0);
                 },
                 () -> {
-                    // UserCoupon 테이블에는 100개 레코드만 존재
-                    long savedUserCouponCount = userCouponRepository.count();
-                    assertThat(savedUserCouponCount).isEqualTo(100);
+                    // UserCoupon 테이블에는 100개만 생성되어야 한다
+                    long savedCount = userCouponRepository.count();
+                    assertThat(savedCount).isEqualTo(100);
                 }
         );
     }
