@@ -155,9 +155,8 @@ public class CouponService {
             throw new BadRequestException(CouponExceptionType.COUPON_EXPIRED);
         }
 
-        // 3) DB에서 User 조회
-        User user = userRepository.findById(userId)
-                                  .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
+        userRepository.findById(userId)
+                      .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
 
         CouponKafkaDTO kafkaDTO = CouponKafkaDTO.from(userId, coupon, now);
         couponKafkaProducerService.sendCoupon("coupon-topic", kafkaDTO);
