@@ -26,11 +26,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CouponKafkaConsumerService {
 
-    private final CouponRepository           couponRepository;
-    private final UserCouponRepository       userCouponRepository;
-    private final UserRepository             userRepository;
-    private final CouponStockRepository      couponStockRepository; // Redis 재고 복구용
-    private final ObjectMapper               objectMapper;
+    private final CouponRepository couponRepository;
+    private final UserCouponRepository userCouponRepository;
+    private final UserRepository userRepository;
+    private final CouponStockRepository couponStockRepository; // Redis 재고 복구용
+    private final ObjectMapper objectMapper;
 
     /**
      * KafkaListener: "coupon-topic"을 구독
@@ -46,58 +46,6 @@ public class CouponKafkaConsumerService {
             containerFactory = "kafkaListenerContainerFactory",
             concurrency = "6"
     )
-    @Transactional
-    public void consumeCouponTest(String message, Acknowledgment ack) {
-        CouponKafkaDTO couponKafkaDTO;
-        try {
-            couponKafkaDTO = objectMapper.readValue(message, CouponKafkaDTO.class);
-        } catch (JsonProcessingException e) {
-            log.error("[KAFKA][PARSE_ERROR] 메시지 파싱 오류: {}", message, e);
-            // 파싱 자체가 안 되면 복구할 Redis 재고도 없으므로 그냥 ack
-            ack.acknowledge();
-            return;
-        }
-
-        String couponCode = couponKafkaDTO.couponCode();
-
-
-        // 2) User 조회 및 UserCoupon 저장
-        try {
-            User user = userRepository.findById(couponKafkaDTO.userId())
-                                      .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
-
-            Coupon coupon = couponRepository.findById(couponKafkaDTO.couponId())
-                                            .orElseThrow(() -> new NotFoundException(CouponExceptionType.COUPON_NOT_FOUND));
-
-            UserCoupon userCoupon = UserCoupon.builder()
-                                              .coupon(coupon)
-                                              .user(user)
-                                              .build();
-            userCouponRepository.save(userCoupon);
-            log.info("[KAFKA] 쿠폰 발급 완료: userId={}, couponCode={}", couponKafkaDTO.userId(), couponCode);
-
-        } catch (DataAccessException | NotFoundException ex) {
-            // DB 저장 중 예외 발생 시, 이미 감소된 DB 재고는 롤백(트랜잭션으로 자동 복구되지만),
-            // Redis 재고는 수동 복구 필요
-            log.error("[KAFKA] UserCoupon 저장 실패, Redis 재고 복구: couponCode={}", couponCode, ex);
-            // 트랜잭션이 롤백되므로 DB quantity는 원래값으로 돌아갑니다.
-        }
-
-        // 3) 정상 처리(또는 복구) 후 ACK
-        ack.acknowledge();
-    }
-
-
-
-
-
-
-
-
-
-
-
-/*
     @Transactional
     public void consumeCoupon(String message, Acknowledgment ack) {
         CouponKafkaDTO couponKafkaDTO;
@@ -148,5 +96,48 @@ public class CouponKafkaConsumerService {
         // 3) 정상 처리(또는 복구) 후 ACK
         ack.acknowledge();
     }
-    */
 }
+
+
+
+    /*
+    @Transactional
+    public void consumeCouponTest(String message, Acknowledgment ack) {
+        CouponKafkaDTO couponKafkaDTO;
+        try {
+            couponKafkaDTO = objectMapper.readValue(message, CouponKafkaDTO.class);
+        } catch (JsonProcessingException e) {
+            log.error("[KAFKA][PARSE_ERROR] 메시지 파싱 오류: {}", message, e);
+            // 파싱 자체가 안 되면 복구할 Redis 재고도 없으므로 그냥 ack
+            ack.acknowledge();
+            return;
+        }
+
+        String couponCode = couponKafkaDTO.couponCode();
+
+
+        // 2) User 조회 및 UserCoupon 저장
+        try {
+            User user = userRepository.findById(couponKafkaDTO.userId())
+                                      .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
+
+            Coupon coupon = couponRepository.findById(couponKafkaDTO.couponId())
+                                            .orElseThrow(() -> new NotFoundException(CouponExceptionType.COUPON_NOT_FOUND));
+
+            UserCoupon userCoupon = UserCoupon.builder()
+                                              .coupon(coupon)
+                                              .user(user)
+                                              .build();
+            userCouponRepository.save(userCoupon);
+            log.info("[KAFKA] 쿠폰 발급 완료: userId={}, couponCode={}", couponKafkaDTO.userId(), couponCode);
+
+        } catch (DataAccessException | NotFoundException ex) {
+            // DB 저장 중 예외 발생 시, 이미 감소된 DB 재고는 롤백(트랜잭션으로 자동 복구되지만),
+            // Redis 재고는 수동 복구 필요
+            log.error("[KAFKA] UserCoupon 저장 실패, Redis 재고 복구: couponCode={}", couponCode, ex);
+            // 트랜잭션이 롤백되므로 DB quantity는 원래값으로 돌아갑니다.
+        }
+
+        // 3) 정상 처리(또는 복구) 후 ACK
+        ack.acknowledge();
+    } */
