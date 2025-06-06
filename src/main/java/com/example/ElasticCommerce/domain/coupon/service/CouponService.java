@@ -139,4 +139,27 @@ public class CouponService {
         // 7) 할인 금액 계산 후 리턴 (정액/정률 모두 지원)
         return coupon.calculateDiscountAmount(orderAmount);
     }
+
+    @Transactional
+    public void issueUserCouponInsertOnly(IssueUserCouponRequest request) {
+        Long userId = request.userId();
+        String couponCode = request.couponCode();
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        // 1) DB에서 Coupon 조회 (유효성만 확인)
+        Coupon coupon = couponRepository.findByCouponCode(couponCode)
+                                        .orElseThrow(() -> new NotFoundException(CouponExceptionType.COUPON_NOT_FOUND));
+
+        // 2) 쿠폰 만료 여부 체크
+        if (coupon.isExpired(now)) {
+            throw new BadRequestException(CouponExceptionType.COUPON_EXPIRED);
+        }
+
+        // 3) DB에서 User 조회
+        User user = userRepository.findById(userId)
+                                  .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
+
+        CouponKafkaDTO kafkaDTO = CouponKafkaDTO.from(userId, coupon, now);
+        couponKafkaProducerService.sendCoupon("coupon-topic", kafkaDTO);
+    }
 }

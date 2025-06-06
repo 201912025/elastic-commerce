@@ -32,4 +32,10 @@ public class CouponController {
         Long discountAmount = couponService.applyCoupon(dto);
         return ResponseEntity.ok(discountAmount);
     }
+
+    @PostMapping("/issue/no-redis")
+    public void issueWithoutRedis(@RequestBody IssueUserCouponRequest dto) {
+        // 기존 applyUserCoupon 로직에서 Redis 관련 코드만 빼고 DB 저장 로직만 그대로 호출
+        couponService.issueUserCouponInsertOnly(dto);
+    }
 }
