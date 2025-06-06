@@ -59,51 +59,47 @@ public class CouponService {
                               .build();
 
         couponRepository.save(coupon);
+        couponStockRepository.setIfAbsent(request.couponCode(), request.quantity());
+
         return coupon.getCouponId();
     }
 
     @Transactional
-    public void issueUserCoupon(IssueUserCouponRequest issueUserCouponRequest) {
-        Long userId = issueUserCouponRequest.userId();
-        String couponCode = issueUserCouponRequest.couponCode();
+    public void issueUserCoupon(IssueUserCouponRequest dto) {
+        Long userId    = dto.userId();
+        String couponCode = dto.couponCode();
         LocalDateTime now = LocalDateTime.now(clock);
 
-        // ─── 1) DB에서 Coupon 조회(유효성 체크) ───
+        // 1) DB에서 Coupon 조회(유효성 체크)
         Coupon coupon = couponRepository.findByCouponCode(couponCode)
                                         .orElseThrow(() -> new NotFoundException(CouponExceptionType.COUPON_NOT_FOUND));
 
-        // ─── 2) 쿠폰 만료 체크 ───
+        // 2) 쿠폰 만료 여부 체크
         if (coupon.isExpired(now)) {
             throw new BadRequestException(CouponExceptionType.COUPON_EXPIRED);
         }
 
-        // ─── 3) 중복 발급 검사 ───
+        // 3) 중복 발급 검사
         userCouponRepository.findByUserIdAndCouponCode(userId, couponCode)
-                            .ifPresent(uc -> {
-                                throw new BadRequestException(CouponExceptionType.COUPON_DUPLICATE_ISSUE);
-                            });
+                            .ifPresent(uc -> { throw new BadRequestException(CouponExceptionType.COUPON_DUPLICATE_ISSUE); });
 
-        // ─── 4) DB에서 User 조회(없으면 예외) ───
+        // 4) User 조회(없으면 예외)
         User user = userRepository.findById(userId)
                                   .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
 
-        // ─── 5a) Redis에 재고 키가 있는지 확인하고 없으면 초기화 ───
-        Boolean hasKey = couponStockRepository.existsKey(couponCode);
-        if (Boolean.FALSE.equals(hasKey)) {
-            // Redis에 쿠폰 재고가 셋업되어 있지 않으면, DB의 quantity 값으로 초기화
-            couponStockRepository.setInitialStock(couponCode, coupon.getQuantity());
-        }
+        // ─── 여기서 **무조건** SETNX(setIfAbsent)로 “한 번만 초기화”를 시도한다.
+        //     기존의 existsKey+setInitialStock을 모두 대체.
+        couponStockRepository.setIfAbsent(couponCode, coupon.getQuantity());
 
-        // ─── 5b) Redis에서 재고 DECR → 선점 ───
+        // ─── Redis DECR 명령으로 재고를 1만큼 감소
         Long newStock = couponStockRepository.decrement(couponCode);
         if (newStock < 0) {
-            // 이미 재고가 없는 상태이므로, Redis 재고 복구 후 예외
+            // 재고가 이미 없으면, Redis 값(–1)을 바로 복구하고 예외
             couponStockRepository.increment(couponCode);
             throw new BadRequestException(CouponExceptionType.COUPON_OUT_OF_STOCK);
         }
-        // Redis 선점 성공(newStock >= 0)이면, 발급 허용
 
-        // ─── 6) Kafka로 메시지 발행만 하고, 실제 DB 업데이트는 컨슈머가 처리 ───
+        // ─── Kafka로 메시지 발행 후, 실제 DB 저장/차감은 Consumer가 담당
         CouponKafkaDTO kafkaDTO = CouponKafkaDTO.from(userId, coupon, now);
         couponKafkaProducerService.sendCoupon("coupon-topic", kafkaDTO);
     }
