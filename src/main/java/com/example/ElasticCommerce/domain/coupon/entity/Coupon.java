@@ -2,10 +2,7 @@ package com.example.ElasticCommerce.domain.coupon.entity;
 
 import com.example.ElasticCommerce.global.common.BaseEntity;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -37,6 +34,9 @@ public class Coupon extends BaseEntity {
 
     @Column(nullable = false)
     private Integer quantity;
+
+    @Version
+    private Long version;
 
     @Builder
     public Coupon(String couponCode,

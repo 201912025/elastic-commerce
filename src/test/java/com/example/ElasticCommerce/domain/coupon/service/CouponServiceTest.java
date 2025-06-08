@@ -456,8 +456,6 @@ class CouponServiceTest {
 
         // 5) 모든 스레드 완료 대기
         latch.await();
-        // Consumer가 남은 비동기 처리를 마치도록 잠시 대기
-        Thread.sleep(5_000);
 
         assertAll(
                 () -> {

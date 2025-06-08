@@ -66,15 +66,16 @@ public class CouponService {
 
     @Transactional
     public void issueUserCoupon(IssueUserCouponRequest dto) {
-        Long userId    = dto.userId();
+        Long userId       = dto.userId();
         String couponCode = dto.couponCode();
         LocalDateTime now = LocalDateTime.now(clock);
 
-        // 1) DB에서 Coupon 조회(유효성 체크)
-        Coupon coupon = couponRepository.findByCouponCode(couponCode)
-                                        .orElseThrow(() -> new NotFoundException(CouponExceptionType.COUPON_NOT_FOUND));
+        // 1) 락 걸어서 Coupon 조회
+        Coupon coupon = couponRepository
+                .findByCouponCodeForUpdate(couponCode)
+                .orElseThrow(() -> new NotFoundException(CouponExceptionType.COUPON_NOT_FOUND));
 
-        // 2) 쿠폰 만료 여부 체크
+        // 2) 만료 여부 검사
         if (coupon.isExpired(now)) {
             throw new BadRequestException(CouponExceptionType.COUPON_EXPIRED);
         }
@@ -83,25 +84,22 @@ public class CouponService {
         userCouponRepository.findByUserIdAndCouponCode(userId, couponCode)
                             .ifPresent(uc -> { throw new BadRequestException(CouponExceptionType.COUPON_DUPLICATE_ISSUE); });
 
-        // 4) User 조회(없으면 예외)
+        // 4) User 조회
         User user = userRepository.findById(userId)
                                   .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
 
-        // ─── 여기서 **무조건** SETNX(setIfAbsent)로 “한 번만 초기화”를 시도한다.
-        //     기존의 existsKey+setInitialStock을 모두 대체.
-        couponStockRepository.setIfAbsent(couponCode, coupon.getQuantity());
-
-        // ─── Redis DECR 명령으로 재고를 1만큼 감소
-        Long newStock = couponStockRepository.decrement(couponCode);
-        if (newStock < 0) {
-            // 재고가 이미 없으면, Redis 값(–1)을 바로 복구하고 예외
-            couponStockRepository.increment(couponCode);
+        // 5) DB 원자적 재고 차감
+        int updated = couponRepository.decrementIfAvailable(coupon.getCouponId());
+        if (updated != 1) {
             throw new BadRequestException(CouponExceptionType.COUPON_OUT_OF_STOCK);
         }
 
-        // ─── Kafka로 메시지 발행 후, 실제 DB 저장/차감은 Consumer가 담당
-        CouponKafkaDTO kafkaDTO = CouponKafkaDTO.from(userId, coupon, now);
-        couponKafkaProducerService.sendCoupon("coupon-topic", kafkaDTO);
+        // 6) 발급 기록 저장
+        UserCoupon userCoupon = UserCoupon.builder()
+                                          .user(user)
+                                          .coupon(coupon)
+                                          .build();
+        userCouponRepository.save(userCoupon);
     }
 
     @Transactional
