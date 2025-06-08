@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface UserCouponRepository extends JpaRepository<UserCoupon, Long> {
@@ -30,4 +31,7 @@ public interface UserCouponRepository extends JpaRepository<UserCoupon, Long> {
             @Param("userId") Long userId,
             @Param("couponCode") String couponCode
     );
+
+    @Query("SELECT uc FROM UserCoupon uc WHERE uc.user.userId = :userId")
+    List<UserCoupon> findAllByUserId(@Param("userId") Long userId);
 }

@@ -1,9 +1,6 @@
 package com.example.ElasticCommerce.domain.coupon.service;
 
-import com.example.ElasticCommerce.domain.coupon.dto.ApplyCouponRequest;
-import com.example.ElasticCommerce.domain.coupon.dto.CouponKafkaDTO;
-import com.example.ElasticCommerce.domain.coupon.dto.IssueCouponRequest;
-import com.example.ElasticCommerce.domain.coupon.dto.IssueUserCouponRequest;
+import com.example.ElasticCommerce.domain.coupon.dto.*;
 import com.example.ElasticCommerce.domain.coupon.entity.Coupon;
 import com.example.ElasticCommerce.domain.coupon.entity.UserCoupon;
 import com.example.ElasticCommerce.domain.coupon.exception.CouponExceptionType;
@@ -17,11 +14,16 @@ import com.example.ElasticCommerce.domain.user.repository.UserRepository;
 import com.example.ElasticCommerce.global.exception.type.BadRequestException;
 import com.example.ElasticCommerce.global.exception.type.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -146,11 +148,9 @@ public class CouponService {
         String couponCode = request.couponCode();
         LocalDateTime now = LocalDateTime.now(clock);
 
-        // 1) DB에서 Coupon 조회 (유효성만 확인)
         Coupon coupon = couponRepository.findByCouponCode(couponCode)
                                         .orElseThrow(() -> new NotFoundException(CouponExceptionType.COUPON_NOT_FOUND));
 
-        // 2) 쿠폰 만료 여부 체크
         if (coupon.isExpired(now)) {
             throw new BadRequestException(CouponExceptionType.COUPON_EXPIRED);
         }
@@ -160,5 +160,27 @@ public class CouponService {
 
         CouponKafkaDTO kafkaDTO = CouponKafkaDTO.from(userId, coupon, now);
         couponKafkaProducerService.sendCoupon("coupon-topic", kafkaDTO);
+    }
+
+    public Page<CompanyCouponDto> getAllCompanyCoupons(int page, int size) {
+        return couponRepository.findAll(PageRequest.of(page, size))
+                               .map(CompanyCouponDto::from);
+    }
+
+    public CompanyCouponDto getCompanyCoupon(Long couponId) {
+        Coupon coupon = couponRepository.findById(couponId)
+                                        .orElseThrow(() -> new NotFoundException(CouponExceptionType.COUPON_NOT_FOUND));
+        return CompanyCouponDto.from(coupon);
+    }
+
+    public List<UserCouponDto> getUserCoupons(Long userId) {
+        userRepository.findById(userId)
+                      .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
+
+        List<UserCoupon>  userCoupons = userCouponRepository.findAllByUserId(userId);
+
+        return userCoupons.stream()
+                          .map(UserCouponDto::from)
+                          .collect(Collectors.toList());
     }
 }

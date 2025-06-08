@@ -1,8 +1,6 @@
 package com.example.ElasticCommerce.domain.coupon.service;
 
-import com.example.ElasticCommerce.domain.coupon.dto.ApplyCouponRequest;
-import com.example.ElasticCommerce.domain.coupon.dto.IssueCouponRequest;
-import com.example.ElasticCommerce.domain.coupon.dto.IssueUserCouponRequest;
+import com.example.ElasticCommerce.domain.coupon.dto.*;
 import com.example.ElasticCommerce.domain.coupon.entity.Coupon;
 import com.example.ElasticCommerce.domain.coupon.entity.DiscountType;
 import com.example.ElasticCommerce.domain.coupon.entity.UserCoupon;
@@ -27,6 +25,7 @@ import org.springframework.boot.test.util.TestPropertyValues;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.domain.Page;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
@@ -43,10 +42,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -73,14 +74,22 @@ class CouponServiceTest {
                     .waitingFor(Wait.forListeningPort());
 
     // ─── Autowired 빈들 ──────────────────────────────────────────────────────────
-    @Autowired private CouponService couponService;
-    @Autowired private CouponRepository couponRepository;
-    @Autowired private UserCouponRepository userCouponRepository;
-    @Autowired private UserRepository userRepository;
-    @Autowired private CouponStockRepository couponStockRepository;
-    @Autowired private Clock clock;
-    @Autowired private ObjectMapper objectMapper;
-    @Autowired private CouponKafkaProducerService couponKafkaProducerService;
+    @Autowired
+    private CouponService couponService;
+    @Autowired
+    private CouponRepository couponRepository;
+    @Autowired
+    private UserCouponRepository userCouponRepository;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private CouponStockRepository couponStockRepository;
+    @Autowired
+    private Clock clock;
+    @Autowired
+    private ObjectMapper objectMapper;
+    @Autowired
+    private CouponKafkaProducerService couponKafkaProducerService;
     // ─────────────────────────────────────────────────────────────────────────────
 
     private User testUser;
@@ -471,6 +480,86 @@ class CouponServiceTest {
                     long savedCount = userCouponRepository.count();
                     assertThat(savedCount).isEqualTo(100);
                 }
+        );
+    }
+
+    @Test
+    @DisplayName("회사 쿠폰 전체 조회 테스트")
+    void 회사쿠폰전체조회_테스트() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        IssueCouponRequest req1 = new IssueCouponRequest(
+                "COMP1", DiscountType.FIXED, 10L, 0L, now.plusDays(5), 10
+        );
+        IssueCouponRequest req2 = new IssueCouponRequest(
+                "COMP2", DiscountType.PERCENT, 20L, 100L, now.plusDays(3), 5
+        );
+        couponService.issueCompanyCoupon(req1);
+        couponService.issueCompanyCoupon(req2);
+
+        Page<CompanyCouponDto> page = couponService.getAllCompanyCoupons(0, 10);
+        assertThat(page.getTotalElements()).isEqualTo(2);
+
+        List<String> codes = page.stream()
+                                 .map(CompanyCouponDto::couponCode)
+                                 .collect(Collectors.toList());
+        assertThat(codes).containsExactlyInAnyOrder("COMP1", "COMP2");
+    }
+
+    @Test
+    @DisplayName("단일 회사 쿠폰 조회 성공 테스트")
+    void 단일회사쿠폰조회_성공_테스트() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        IssueCouponRequest req = new IssueCouponRequest(
+                "UNIQUE", DiscountType.FIXED, 50L, 200L, now.plusDays(7), 20
+        );
+        Long id = couponService.issueCompanyCoupon(req);
+
+        CompanyCouponDto dto = couponService.getCompanyCoupon(id);
+        assertAll(
+                () -> assertThat(dto.couponId()).isEqualTo(id),
+                () -> assertThat(dto.couponCode()).isEqualTo("UNIQUE"),
+                () -> assertThat(dto.discountValue()).isEqualTo(50L)
+        );
+    }
+
+    @Test
+    @DisplayName("사용자 쿠폰 전체 조회 테스트")
+    @Transactional
+    void 사용자쿠폰전체조회_테스트() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        Coupon coupon = couponRepository.saveAndFlush(
+                Coupon.builder()
+                      .couponCode("USERALL")
+                      .discountType(DiscountType.FIXED)
+                      .discountValue(5L)
+                      .minimumOrderAmount(0L)
+                      .expirationDate(now.plusDays(2))
+                      .quantity(10)
+                      .build()
+        );
+
+        UserCoupon uc1 = userCouponRepository.save(
+                UserCoupon.builder()
+                          .coupon(coupon)
+                          .user(testUser)
+                          .build()
+        );
+        UserCoupon uc2 = userCouponRepository.save(
+                UserCoupon.builder()
+                          .coupon(coupon)
+                          .user(testUser)
+                          .build()
+        );
+        userCouponRepository.flush();
+
+        List<UserCouponDto> list = couponService.getUserCoupons(testUser.getUserId());
+        assertThat(list).hasSize(2);
+
+        List<Long> ids = list.stream()
+                             .map(UserCouponDto::id)
+                             .collect(Collectors.toList());
+        assertThat(ids).containsExactlyInAnyOrder(
+                uc1.getUserCouponId(), uc2.getUserCouponId()
         );
     }
 }
