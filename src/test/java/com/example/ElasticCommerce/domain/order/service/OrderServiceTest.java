@@ -3,6 +3,7 @@ package com.example.ElasticCommerce.domain.order.service;
 import com.example.ElasticCommerce.domain.order.dto.request.CreateOrderRequest;
 import com.example.ElasticCommerce.domain.order.dto.request.UpdateOrderStatusRequest;
 import com.example.ElasticCommerce.domain.order.dto.response.OrderDto;
+import com.example.ElasticCommerce.domain.order.entity.Address;
 import com.example.ElasticCommerce.domain.order.entity.Order;
 import com.example.ElasticCommerce.domain.order.entity.OrderItem;
 import com.example.ElasticCommerce.domain.order.entity.OrderStatus;
@@ -47,6 +48,7 @@ class OrderServiceTest {
 
     @BeforeEach
     void setUp() {
+        // 1) 테스트용 User 준비
         testUser = User.builder()
                        .username("testuser")
                        .email("test@example.com")
@@ -56,6 +58,7 @@ class OrderServiceTest {
                        .build();
         ReflectionTestUtils.setField(testUser, "userId", 1L);
 
+        // 2) 테스트용 Product 준비
         productA = Product.builder()
                           .productCode("P-A")
                           .name("Product A")
@@ -68,11 +71,33 @@ class OrderServiceTest {
                           .build();
         ReflectionTestUtils.setField(productA, "id", 10L);
 
+        // 3) 테스트용 OrderItem 준비
         itemA = OrderItem.builder()
                          .product(productA)
                          .quantity(2)
                          .price(productA.getPrice())
                          .build();
+    }
+
+    private Order createDummyOrderWithAddress(Long orderId, List<OrderItem> items) {
+        Address dummyAddress = Address.builder()
+                                      .order(null)
+                                      .recipientName("테스트수령인")
+                                      .street("테스트로 1")
+                                      .city("테스트시")
+                                      .postalCode("12345")
+                                      .phoneNumber("010-0000-0000")
+                                      .build();
+
+        Order order = Order.builder()
+                           .user(testUser)
+                           .items(items)
+                           .address(dummyAddress)
+                           .build();
+
+        ReflectionTestUtils.setField(order, "id", orderId);
+        ReflectionTestUtils.setField(dummyAddress, "order", order);
+        return order;
     }
 
     @Nested
@@ -81,7 +106,6 @@ class OrderServiceTest {
         @Test
         @DisplayName("성공: 올바른 사용자와 상품, 그리고 배송지 정보가 주어졌을 때 주문 생성")
         void 성공_올바른_사용자와_상품_및_배송지_정보가_주어졌을_때_주문_생성() {
-            // given
             CreateOrderRequest.OrderItemRequest reqItem =
                     new CreateOrderRequest.OrderItemRequest(productA.getId(), 2);
             CreateOrderRequest.AddressRequest addrReq =
@@ -97,15 +121,13 @@ class OrderServiceTest {
             when(productRepository.findById(productA.getId())).thenReturn(Optional.of(productA));
             when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-            // when
             OrderDto dto = orderService.createOrder(1L, req);
 
-            // then
             assertThat(dto).isNotNull();
             assertThat(dto.userId()).isEqualTo(1L);
             assertThat(dto.items()).hasSize(1);
             assertThat(dto.items().get(0).productId()).isEqualTo(productA.getId());
-            assertThat(productA.getStockQuantity()).isEqualTo(3); // 5 - 2
+            assertThat(productA.getStockQuantity()).isEqualTo(3);
 
             assertThat(dto.address()).satisfies(addr -> {
                 assertThat(addr.recipientName()).isEqualTo("홍길동");
@@ -143,13 +165,8 @@ class OrderServiceTest {
     class GetOrder {
         @Test
         @DisplayName("성공: 존재하는 주문 조회")
-        void givenExistingOrder_whenGetOrder_thenReturnsDto() {
-            Order order = Order.builder()
-                               .user(testUser)
-                               .items(List.of(itemA))
-                               .build();
-            ReflectionTestUtils.setField(order, "id", 100L);
-
+        void 성공_존재하는_주문_조회() {
+            Order order = createDummyOrderWithAddress(100L, List.of(itemA));
             when(orderRepository.findByIdAndUserId(100L, 1L))
                     .thenReturn(Optional.of(order));
 
@@ -161,7 +178,7 @@ class OrderServiceTest {
 
         @Test
         @DisplayName("실패: 주문이 없으면 NotFoundException")
-        void givenMissingOrder_whenGetOrder_thenThrow() {
+        void 실패_주문이_없으면_NotFoundException() {
             when(orderRepository.findByIdAndUserId(100L, 1L))
                     .thenReturn(Optional.empty());
 
@@ -176,9 +193,8 @@ class OrderServiceTest {
     class ListOrders {
         @Test
         @DisplayName("성공: 페이징된 주문 목록 조회")
-        void givenOrders_whenListOrders_thenReturnsPage() {
-            Order o1 = Order.builder().user(testUser).items(List.of(itemA)).build();
-            ReflectionTestUtils.setField(o1, "id", 101L);
+        void 성공_페이징된_주문_목록_조회() {
+            Order o1 = createDummyOrderWithAddress(101L, List.of(itemA));
             Page<Order> page = new PageImpl<>(List.of(o1));
 
             when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
@@ -193,7 +209,7 @@ class OrderServiceTest {
 
         @Test
         @DisplayName("실패: 사용자가 없으면 NotFoundException")
-        void givenMissingUser_whenListOrders_thenThrow() {
+        void 실패_사용자가_없으면_NotFoundException() {
             when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> orderService.listOrders(1L, 0, 5))
@@ -207,9 +223,8 @@ class OrderServiceTest {
     class UpdateStatus {
         @Test
         @DisplayName("성공: 상태 변경")
-        void givenValidOrder_whenUpdateStatus_thenStatusChanged() {
-            Order order = Order.builder().user(testUser).items(List.of(itemA)).build();
-            ReflectionTestUtils.setField(order, "id", 200L);
+        void 성공_상태_변경() {
+            Order order = createDummyOrderWithAddress(200L, List.of(itemA));
             when(orderRepository.findByIdAndUserId(200L, 1L))
                     .thenReturn(Optional.of(order));
 
@@ -221,9 +236,8 @@ class OrderServiceTest {
 
         @Test
         @DisplayName("실패: 잘못된 상태 전환 시 BadRequestException")
-        void givenInvalidTransition_whenUpdateStatus_thenThrow() {
-            Order order = Order.builder().user(testUser).items(List.of(itemA)).build();
-            ReflectionTestUtils.setField(order, "id", 200L);
+        void 실패_잘못된_상태_전환() {
+            Order order = createDummyOrderWithAddress(200L, List.of(itemA));
             when(orderRepository.findByIdAndUserId(200L, 1L))
                     .thenReturn(Optional.of(order));
 
@@ -238,24 +252,21 @@ class OrderServiceTest {
     class CancelOrder {
         @Test
         @DisplayName("성공: 재고 복원 및 상태 CANCELLED")
-        void givenValidOrder_whenCancelOrder_thenRestoresStockAndCancels() {
-            Product before = productA;
-            Order order = Order.builder().user(testUser).items(List.of(itemA)).build();
-            ReflectionTestUtils.setField(order, "id", 300L);
+        void 성공_재고_복원_및_취소() {
+            Order order = createDummyOrderWithAddress(300L, List.of(itemA));
             when(orderRepository.findByIdAndUserId(300L, 1L))
                     .thenReturn(Optional.of(order));
 
-            // stock was 3 after create test, but here independent
             productA.updateStockQuantity(5);
             OrderDto dto = orderService.cancelOrder(1L, 300L);
 
             assertThat(dto.status()).isEqualTo(OrderStatus.CANCELLED.name());
-            assertThat(productA.getStockQuantity()).isEqualTo(7); // 5 + 2
+            assertThat(productA.getStockQuantity()).isEqualTo(7);
         }
 
         @Test
         @DisplayName("실패: 주문이 없으면 NotFoundException")
-        void givenMissingOrder_whenCancelOrder_thenThrow() {
+        void 실패_주문이_없으면_NotFoundException() {
             when(orderRepository.findByIdAndUserId(400L, 1L))
                     .thenReturn(Optional.empty());
 
