@@ -81,6 +81,7 @@ class CouponServiceTest {
     @Autowired private Clock clock;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private CouponKafkaProducerService couponKafkaProducerService;
+    @Autowired private LettuceLockStockFacade lettuceLockStockFacade;
     // ─────────────────────────────────────────────────────────────────────────────
 
     private User testUser;
@@ -447,7 +448,7 @@ class CouponServiceTest {
             executor.execute(() -> {
                 try {
                     IssueUserCouponRequest dto = new IssueUserCouponRequest(userId, "CONC100");
-                    couponService.issueUserCoupon(dto);
+                    lettuceLockStockFacade.issueUserCouponWithLock(dto);
                 } finally {
                     latch.countDown();
                 }
