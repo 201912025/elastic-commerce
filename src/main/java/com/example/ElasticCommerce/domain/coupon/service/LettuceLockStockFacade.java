@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 public class LettuceLockStockFacade {
 
     private final RedisLockRepository lockRepository;
-    private final CouponService        couponService;
+    private final CouponService couponService;
 
     public void issueUserCouponWithLock(IssueUserCouponRequest dto) {
         String lockKey = "lock:coupon:" + dto.couponCode();
