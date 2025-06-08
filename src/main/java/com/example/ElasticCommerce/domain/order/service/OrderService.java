@@ -14,6 +14,7 @@ import com.example.ElasticCommerce.domain.product.repository.ProductRepository;
 import com.example.ElasticCommerce.domain.user.entity.User;
 import com.example.ElasticCommerce.domain.user.exception.UserExceptionType;
 import com.example.ElasticCommerce.domain.user.repository.UserRepository;
+import com.example.ElasticCommerce.global.exception.type.BadRequestException;
 import com.example.ElasticCommerce.global.exception.type.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -93,13 +94,20 @@ public class OrderService {
     public OrderDto cancelOrder(Long userId, Long orderId) {
         log.info("주문 취소 시작: userId={}, orderId={}", userId, orderId);
         Order order = findOrderOrThrow(userId, orderId);
-        // 재고 복원
+
+        OrderStatus status = order.getStatus();
+        if (status != OrderStatus.CREATED && status != OrderStatus.PAID) {
+            log.warn("취소 불가 상태: orderId={}, status={}", orderId, status);
+            throw new BadRequestException(OrderExceptionType.ORDER_CANNOT_CANCEL);
+        }
+
         order.getItems().forEach(item -> {
             Product product = item.getProduct();
             int restored = product.getStockQuantity() + item.getQuantity();
             product.updateStockQuantity(restored);
             log.info("재고 복원: productId={}, restoredQuantity={}", product.getId(), restored);
         });
+
         order.cancel();
         log.info("주문 취소 완료: orderId={}", orderId);
         return order.toDto();
