@@ -1,0 +1,24 @@
+{
+  "analysis": {
+    "analyzer": {
+      "review_title_analyzer": {
+        "char_filter": [],
+        "tokenizer": "nori_tokenizer",
+        "filter": [
+          "nori_part_of_speech",
+          "nori_readingform",
+          "lowercase"
+        ]
+      },
+      "review_comment_analyzer": {
+        "char_filter": ["html_strip"],
+        "tokenizer": "nori_tokenizer",
+        "filter": [
+          "nori_part_of_speech",
+          "nori_readingform",
+          "lowercase"
+        ]
+      }
+    }
+  }
+}

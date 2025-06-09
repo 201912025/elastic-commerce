@@ -40,4 +40,36 @@ public class KafkaTopicConfig {
                            .replicas(1)
                            .build();
     }
+
+    @Bean
+    public NewTopic reviewTopic() {
+        return TopicBuilder.name("request-topic")
+                           .partitions(6)
+                           .replicas(1)
+                           .build();
+    }
+
+    @Bean
+    public NewTopic reviewDltTopic() {
+        return TopicBuilder.name("request-topic.DLT")
+                           .partitions(6)
+                           .replicas(1)
+                           .build();
+    }
+
+    @Bean
+    public NewTopic reviewRatingTopic() {
+        return TopicBuilder.name("request-rating-topic")
+                           .partitions(3)
+                           .replicas(1)
+                           .build();
+    }
+
+    @Bean
+    public NewTopic reviewRatingDltTopic() {
+        return TopicBuilder.name("request-rating-topic.DLT")
+                           .partitions(3)
+                           .replicas(1)
+                           .build();
+    }
 }

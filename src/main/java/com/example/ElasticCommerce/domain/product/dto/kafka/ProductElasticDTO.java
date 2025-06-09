@@ -1,4 +1,4 @@
-package com.example.ElasticCommerce.domain.product.dto.request;
+package com.example.ElasticCommerce.domain.product.dto.kafka;
 
 import com.example.ElasticCommerce.domain.product.entity.Product;
 

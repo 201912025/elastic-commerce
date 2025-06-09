@@ -1,6 +1,6 @@
 package com.example.ElasticCommerce.domain.product.service.kafka;
 
-import com.example.ElasticCommerce.domain.product.dto.request.ProductElasticDTO;
+import com.example.ElasticCommerce.domain.product.dto.kafka.ProductElasticDTO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

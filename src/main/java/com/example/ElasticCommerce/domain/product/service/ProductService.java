@@ -2,7 +2,7 @@ package com.example.ElasticCommerce.domain.product.service;
 
 import co.elastic.clients.elasticsearch._types.query_dsl.*;
 import com.example.ElasticCommerce.domain.product.dto.request.CreateProductRequestDTO;
-import com.example.ElasticCommerce.domain.product.dto.request.ProductElasticDTO;
+import com.example.ElasticCommerce.domain.product.dto.kafka.ProductElasticDTO;
 import com.example.ElasticCommerce.domain.product.dto.request.UpdateProductRequestDTO;
 import com.example.ElasticCommerce.domain.product.dto.response.ProductResponse;
 import com.example.ElasticCommerce.domain.product.entity.Product;
@@ -10,6 +10,7 @@ import com.example.ElasticCommerce.domain.product.entity.ProductDocument;
 import com.example.ElasticCommerce.domain.product.exception.ProductExceptionType;
 import com.example.ElasticCommerce.domain.product.repository.ProductRepository;
 import com.example.ElasticCommerce.domain.product.service.kafka.KafkaProducerService;
+import com.example.ElasticCommerce.domain.review.repository.ReviewRepository;
 import com.example.ElasticCommerce.global.exception.type.BadRequestException;
 import com.example.ElasticCommerce.global.exception.type.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,8 @@ import org.springframework.data.elasticsearch.core.query.highlight.HighlightFiel
 import org.springframework.data.elasticsearch.core.query.highlight.HighlightParameters;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +43,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final ElasticsearchOperations elasticsearchOperations;
+    private final ReviewRepository reviewRepository;
     private final KafkaProducerService kafkaProducerService;
 
     public List<ProductResponse> getProducts(int page, int size) {
@@ -260,13 +264,28 @@ public class ProductService {
     }
 
     @Transactional
-    public void updateProductRating(Long productId, double newAvgRating) {
-        log.info("[Service][UPDATE_PRODUCT_RATING] productId={}, newAvgRating={}", productId, newAvgRating);
+    public void updateAverageRating(Long productId) {
+        double avgRating = reviewRepository
+                .findAverageRatingByProductId(productId);
+
         Product product = productRepository.findById(productId)
                                            .orElseThrow(() -> new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND));
 
-        product.updateRating(newAvgRating);
-        kafkaProducerService.sendProduct("product-topic", ProductElasticDTO.from(product, "UPDATE_RATING"));
-        log.info("[Service][UPDATE_PRODUCT_RATING] Kafka 이벤트 전송 완료: eventType=UPDATE_RATING, id={}", productId);
+        product.updateRating(avgRating);
+        productRepository.save(product);
+
+        // 트랜잭션이 커밋된 이후에만 메시지를 보냄
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronizationAdapter() {
+                    @Override
+                    public void afterCommit() {
+                        kafkaProducerService.sendProduct(
+                                "product-topic",
+                                ProductElasticDTO.from(product, "UPDATE_RATING")
+                        );
+                        log.info("[상품평점동기화] 상품ID={} 평균평점={} 평균 평점 동기화 완료", productId, avgRating);
+                    }
+                }
+        );
     }
 }

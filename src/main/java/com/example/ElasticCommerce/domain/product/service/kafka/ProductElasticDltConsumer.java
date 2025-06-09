@@ -1,6 +1,6 @@
 package com.example.ElasticCommerce.domain.product.service.kafka;
 
-import com.example.ElasticCommerce.domain.product.dto.request.ProductElasticDTO;
+import com.example.ElasticCommerce.domain.product.dto.kafka.ProductElasticDTO;
 import com.example.ElasticCommerce.domain.product.entity.FailedEvent;
 import com.example.ElasticCommerce.domain.product.entity.ProductDocument;
 import com.example.ElasticCommerce.domain.product.repository.FailedEventRepository;
