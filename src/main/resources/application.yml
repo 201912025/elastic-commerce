@@ -53,6 +53,4 @@ spring:
 
 logging:
   level:
-    org.elasticsearch.client: INFO
-    org.springframework.cache: trace
-    root: INFO
+    root: WARN
