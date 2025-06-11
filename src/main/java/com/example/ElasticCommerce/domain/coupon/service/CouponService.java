@@ -89,10 +89,6 @@ public class CouponService {
         userCouponRepository.findByUserIdAndCouponCode(userId, couponCode)
                             .ifPresent(uc -> { throw new BadRequestException(CouponExceptionType.COUPON_DUPLICATE_ISSUE); });
 
-        // 4) User 조회(없으면 예외)
-        User user = userRepository.findById(userId)
-                                  .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
-
         // ─── 여기서 **무조건** SETNX(setIfAbsent)로 “한 번만 초기화”를 시도한다.
         //     기존의 existsKey+setInitialStock을 모두 대체.
         couponStockRepository.setIfAbsent(couponCode, coupon.getQuantity());
