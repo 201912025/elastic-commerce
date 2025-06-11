@@ -1,6 +1,7 @@
 package com.example.ElasticCommerce.domain.review.service;
 
 import co.elastic.clients.elasticsearch._types.query_dsl.*;
+import com.example.ElasticCommerce.domain.product.service.ProductService;
 import com.example.ElasticCommerce.domain.review.dto.kafka.ProductRatingKafkaDTO;
 import com.example.ElasticCommerce.domain.review.dto.kafka.ReviewElasticDTO;
 import com.example.ElasticCommerce.domain.review.dto.response.ReviewResponse;
@@ -38,6 +39,8 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final ElasticsearchOperations elasticsearchOperations;
     private final ReviewKafkaProducerService reviewKafkaProducerService;
+    private final ReviewDocumentRepository reviewDocumentRepository;
+    private final ProductService productService;
 
     public ReviewResponse getReview(Long id) {
         log.info("[리뷰조회] ID={} 조회 시작", id);
@@ -64,6 +67,7 @@ public class ReviewService {
             throw new BadRequestException(ReviewExceptionType.INVALID_RATING);
         }
 
+        // 1) DB에 Review 저장
         Review review = Review.builder()
                               .productId(req.productId())
                               .userId(req.userId())
@@ -74,22 +78,23 @@ public class ReviewService {
                               .build();
         reviewRepository.save(review);
 
-        reviewKafkaProducerService.sendReview("review-topic", ReviewElasticDTO.from(review, "CREATE"));
+        // 2) Elasticsearch에 문서 upsert
+        ReviewDocument doc = ReviewDocument.builder()
+                                           .reviewId(review.getId().toString())
+                                           .productId(review.getProductId().toString())
+                                           .userId(review.getUserId().toString())
+                                           .title(review.getTitle())
+                                           .rating(review.getRating())
+                                           .comment(review.getComment())
+                                           .createdAt(review.getCreatedAt().atZone(ZoneId.of("Asia/Seoul")).toInstant())
+                                           .build();
+        reviewDocumentRepository.save(doc);
+        log.info("[ReviewSync][UPSERT] Elasticsearch에 반영 완료: id={}", review.getId());
 
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronizationAdapter() {
-                    @Override
-                    public void afterCommit() {
-                        reviewKafkaProducerService.sendProductRating(
-                                "review-rating-topic",
-                                new ProductRatingKafkaDTO(review.getProductId())
-                        );
-                        log.info("[리뷰등록] 평점갱신 메시지 전송: productId={}", review.getProductId());
-                    }
-                }
-        );
+        // 3) 상품 평균 평점 즉시 갱신
+        productService.updateAverageRating(review.getProductId());
+        log.info("[ReviewSync] 상품평점 동기 갱신 완료: productId={}", review.getProductId());
 
-        log.info("[리뷰등록] ID={} 리뷰등록 완료", review.getId());
         return ReviewResponse.from(review);
     }
 
