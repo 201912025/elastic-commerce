@@ -80,6 +80,9 @@ public class CouponService {
         Coupon coupon = couponRepository.findByCouponCode(couponCode)
                                         .orElseThrow(() -> new NotFoundException(CouponExceptionType.COUPON_NOT_FOUND));
 
+        User user = userRepository.findById(dto.userId())
+                                  .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
+
         // 2) 쿠폰 만료 여부 체크
         if (coupon.isExpired(now)) {
             throw new BadRequestException(CouponExceptionType.COUPON_EXPIRED);
@@ -98,9 +101,23 @@ public class CouponService {
             throw new BadRequestException(CouponExceptionType.COUPON_OUT_OF_STOCK);
         }
 
-        // ─── Kafka로 메시지 발행 후, 실제 DB 저장/차감은 Consumer가 담당
-        CouponKafkaDTO kafkaDTO = CouponKafkaDTO.from(userId, coupon, now);
-        couponKafkaProducerService.sendCoupon("coupon-topic", kafkaDTO);
+        int updated = couponRepository.decrementQuantity(couponCode);
+        if (updated != 1) {
+            // Redis도 복구
+            couponStockRepository.increment(couponCode);
+            throw new BadRequestException(CouponExceptionType.COUPON_OUT_OF_STOCK);
+        }
+
+        // 4) 사용자 존재 확인
+        userRepository.findById(userId)
+                      .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
+
+        // 5) 발급 기록 저장
+        userCouponRepository.save(
+                UserCoupon.builder()
+                          .user(user)
+                          .coupon(coupon)
+                          .build());
     }
 
     @Transactional
