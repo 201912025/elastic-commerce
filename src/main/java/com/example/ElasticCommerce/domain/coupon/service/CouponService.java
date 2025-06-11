@@ -85,9 +85,6 @@ public class CouponService {
             throw new BadRequestException(CouponExceptionType.COUPON_EXPIRED);
         }
 
-        // 3) 중복 발급 검사
-        userCouponRepository.findByUserIdAndCouponCode(userId, couponCode)
-                            .ifPresent(uc -> { throw new BadRequestException(CouponExceptionType.COUPON_DUPLICATE_ISSUE); });
 
         // ─── 여기서 **무조건** SETNX(setIfAbsent)로 “한 번만 초기화”를 시도한다.
         //     기존의 existsKey+setInitialStock을 모두 대체.
