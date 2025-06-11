@@ -4,6 +4,7 @@ import com.example.ElasticCommerce.domain.order.dto.request.CreateOrderRequest;
 import com.example.ElasticCommerce.domain.order.dto.request.UpdateOrderStatusRequest;
 import com.example.ElasticCommerce.domain.order.dto.response.OrderDto;
 import com.example.ElasticCommerce.domain.order.service.OrderService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +23,7 @@ public class OrderController {
     @PostMapping
     public ResponseEntity<OrderDto> createOrder(
             @PathVariable Long userId,
-            @RequestBody CreateOrderRequest req,
+            @Valid @RequestBody CreateOrderRequest req,
             UriComponentsBuilder uriBuilder
     ) {
         OrderDto dto = orderService.createOrder(userId, req);
@@ -56,7 +57,7 @@ public class OrderController {
     public ResponseEntity<OrderDto> updateStatus(
             @PathVariable Long userId,
             @PathVariable Long orderId,
-            @RequestBody UpdateOrderStatusRequest req
+            @Valid @RequestBody UpdateOrderStatusRequest req
     ) {
         OrderDto dto = orderService.updateOrderStatus(userId, orderId, req);
         return ResponseEntity.ok(dto);

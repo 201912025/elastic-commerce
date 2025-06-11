@@ -1,4 +1,4 @@
-package com.example.ElasticCommerce.domain.coupon.dto;
+package com.example.ElasticCommerce.domain.coupon.dto.response;
 
 import com.example.ElasticCommerce.domain.coupon.entity.Coupon;
 import java.time.LocalDateTime;

@@ -1,6 +1,11 @@
 package com.example.ElasticCommerce.domain.coupon.service;
 
 import com.example.ElasticCommerce.domain.coupon.dto.*;
+import com.example.ElasticCommerce.domain.coupon.dto.request.ApplyCouponRequest;
+import com.example.ElasticCommerce.domain.coupon.dto.request.IssueCouponRequest;
+import com.example.ElasticCommerce.domain.coupon.dto.request.IssueUserCouponRequest;
+import com.example.ElasticCommerce.domain.coupon.dto.response.CompanyCouponDto;
+import com.example.ElasticCommerce.domain.coupon.dto.response.UserCouponDto;
 import com.example.ElasticCommerce.domain.coupon.entity.Coupon;
 import com.example.ElasticCommerce.domain.coupon.entity.UserCoupon;
 import com.example.ElasticCommerce.domain.coupon.exception.CouponExceptionType;
@@ -16,7 +21,6 @@ import com.example.ElasticCommerce.global.exception.type.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

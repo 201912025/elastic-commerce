@@ -1,10 +1,14 @@
 package com.example.ElasticCommerce.domain.coupon.controller;
 
-import com.example.ElasticCommerce.domain.coupon.dto.*;
+import com.example.ElasticCommerce.domain.coupon.dto.request.ApplyCouponRequest;
+import com.example.ElasticCommerce.domain.coupon.dto.request.IssueCouponRequest;
+import com.example.ElasticCommerce.domain.coupon.dto.request.IssueUserCouponRequest;
+import com.example.ElasticCommerce.domain.coupon.dto.response.CompanyCouponDto;
+import com.example.ElasticCommerce.domain.coupon.dto.response.UserCouponDto;
 import com.example.ElasticCommerce.domain.coupon.service.CouponService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,19 +22,19 @@ public class CouponController {
     private final CouponService couponService;
 
     @PostMapping("/company")
-    public ResponseEntity<Long> createCompanyCoupon(@RequestBody IssueCouponRequest request) {
+    public ResponseEntity<Long> createCompanyCoupon(@Valid @RequestBody IssueCouponRequest request) {
         Long couponId = couponService.issueCompanyCoupon(request);
         return ResponseEntity.ok(couponId);
     }
 
     @PostMapping("/issue")
-    public ResponseEntity<Void> issueUserCoupon(@RequestBody IssueUserCouponRequest dto) {
+    public ResponseEntity<Void> issueUserCoupon(@Valid @RequestBody IssueUserCouponRequest dto) {
         couponService.issueUserCoupon(dto);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/apply")
-    public ResponseEntity<Long> applyCoupon(@RequestBody ApplyCouponRequest dto) {
+    public ResponseEntity<Long> applyCoupon(@Valid @RequestBody ApplyCouponRequest dto) {
         Long discountAmount = couponService.applyCoupon(dto);
         return ResponseEntity.ok(discountAmount);
     }

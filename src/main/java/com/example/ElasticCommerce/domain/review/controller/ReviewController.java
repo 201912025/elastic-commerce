@@ -4,6 +4,7 @@ import com.example.ElasticCommerce.domain.review.dto.response.ReviewResponse;
 import com.example.ElasticCommerce.domain.review.dto.request.CreateReviewRequest;
 import com.example.ElasticCommerce.domain.review.dto.request.UpdateReviewRequest;
 import com.example.ElasticCommerce.domain.review.service.ReviewService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +18,7 @@ public class ReviewController {
     private final ReviewService service;
 
     @PostMapping
-    public ResponseEntity<ReviewResponse> createReview(@RequestBody CreateReviewRequest req) {
+    public ResponseEntity<ReviewResponse> createReview(@Valid @RequestBody CreateReviewRequest req) {
         ReviewResponse created = service.createReview(req);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
@@ -35,7 +36,7 @@ public class ReviewController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ReviewResponse> updateReview(@PathVariable Long id, @RequestBody UpdateReviewRequest req) {
+    public ResponseEntity<ReviewResponse> updateReview(@PathVariable Long id, @Valid @RequestBody UpdateReviewRequest req) {
         ReviewResponse updated = service.updateReview(id, req);
         return ResponseEntity.ok(updated);
     }

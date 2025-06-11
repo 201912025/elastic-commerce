@@ -3,6 +3,7 @@ package com.example.ElasticCommerce.domain.payment.controller;
 import com.example.ElasticCommerce.domain.payment.dto.request.PaymentRequest;
 import com.example.ElasticCommerce.domain.payment.dto.response.PaymentDto;
 import com.example.ElasticCommerce.domain.payment.service.PaymentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +19,7 @@ public class PaymentController {
     public ResponseEntity<PaymentDto> createPayment(
             @PathVariable Long userId,
             @PathVariable Long orderId,
-            @RequestBody PaymentRequest paymentRequest
+            @Valid @RequestBody PaymentRequest paymentRequest
     ) {
         PaymentDto dto = paymentService.createPayment(userId, orderId, paymentRequest);
         return ResponseEntity.ok(dto);

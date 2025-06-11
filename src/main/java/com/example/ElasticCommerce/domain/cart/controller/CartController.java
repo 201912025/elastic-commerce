@@ -2,6 +2,7 @@ package com.example.ElasticCommerce.domain.cart.controller;
 
 import com.example.ElasticCommerce.domain.cart.dto.*;
 import com.example.ElasticCommerce.domain.cart.service.CartService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,7 +17,7 @@ public class CartController {
     @PostMapping("/{userId}/items")
     public ResponseEntity<CartDto> addItem(
             @PathVariable Long userId,
-            @RequestBody AddCartItemRequest req) {
+            @Valid @RequestBody AddCartItemRequest req) {
         return ResponseEntity.ok(cartService.addItem(userId, req));
     }
 
@@ -29,7 +30,7 @@ public class CartController {
     public ResponseEntity<CartDto> updateQuantity(
             @PathVariable Long userId,
             @PathVariable Long productId,
-            @RequestBody UpdateQuantityRequest req) {
+            @Valid @RequestBody UpdateQuantityRequest req) {
         return ResponseEntity.ok(cartService.updateQuantity(userId, productId, req));
     }
 
