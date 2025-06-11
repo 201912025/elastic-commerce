@@ -1,6 +1,8 @@
 package com.example.ElasticCommerce.domain.review.service;
 
 import co.elastic.clients.elasticsearch._types.query_dsl.*;
+import com.example.ElasticCommerce.domain.product.exception.ProductExceptionType;
+import com.example.ElasticCommerce.domain.product.repository.ProductRepository;
 import com.example.ElasticCommerce.domain.review.dto.kafka.ProductRatingKafkaDTO;
 import com.example.ElasticCommerce.domain.review.dto.kafka.ReviewElasticDTO;
 import com.example.ElasticCommerce.domain.review.dto.response.ReviewResponse;
@@ -11,6 +13,8 @@ import com.example.ElasticCommerce.domain.review.entity.ReviewDocument;
 import com.example.ElasticCommerce.domain.review.exception.ReviewExceptionType;
 import com.example.ElasticCommerce.domain.review.repository.*;
 import com.example.ElasticCommerce.domain.review.service.kafka.ReviewKafkaProducerService;
+import com.example.ElasticCommerce.domain.user.exception.UserExceptionType;
+import com.example.ElasticCommerce.domain.user.repository.UserRepository;
 import com.example.ElasticCommerce.global.exception.type.BadRequestException;
 import com.example.ElasticCommerce.global.exception.type.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +42,8 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final ElasticsearchOperations elasticsearchOperations;
     private final ReviewKafkaProducerService reviewKafkaProducerService;
+    private final UserRepository userRepository;
+    private final ProductRepository productRepository;
 
     public ReviewResponse getReview(Long id) {
         log.info("[리뷰조회] ID={} 조회 시작", id);
@@ -63,6 +69,12 @@ public class ReviewService {
             log.error("[리뷰등록] 평점 유효성 검사 실패: rating={}", req.rating());
             throw new BadRequestException(ReviewExceptionType.INVALID_RATING);
         }
+
+        productRepository.findById(req.productId())
+                         .orElseThrow(() -> new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND));
+
+        userRepository.findById(req.userId())
+                      .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
 
         Review review = Review.builder()
                               .productId(req.productId())
