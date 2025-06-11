@@ -20,25 +20,26 @@ public class ProductRatingConsumer {
     private final ObjectMapper objectMapper;
 
     @KafkaListener(
-            topics           = "review-rating-topic",
-            groupId          = "review-rating-group",
+            topics = "review-rating-topic",
+            groupId = "review-rating-group",
             containerFactory = "kafkaListenerContainerFactory",
-            concurrency      = "3"
+            concurrency = "3"
     )
     public void consumeRatingEvent(String message, Acknowledgment ack) {
-        ProductRatingKafkaDTO productRatingKafkaDTO;
         try {
-            productRatingKafkaDTO = objectMapper.readValue(message, ProductRatingKafkaDTO.class);
+            ProductRatingKafkaDTO dto = objectMapper.readValue(message, ProductRatingKafkaDTO.class);
+
+            try {
+                productService.updateAverageRating(dto.productId());
+                log.info("[상품평점갱신완료] 상품ID={} 평점 재계산 및 동기화 트리거 완료", dto.productId());
+            } catch (Exception svcEx) {
+                log.error("[ProductRating][SERVICE_ERROR] updateAverageRating 실패, productId={}", dto.productId(), svcEx);
+            }
+
+            ack.acknowledge();
         } catch (JsonProcessingException e) {
             log.error("[ProductRating][PARSE_ERROR] 메시지 파싱 오류: {}", message, e);
             ack.acknowledge();
-            return;
         }
-
-        Long productId = productRatingKafkaDTO.productId();
-        productService.updateAverageRating(productId);
-        log.info("[상품평점갱신완료] 상품ID={} 평점 재계산 및 동기화 트리거 완료", productId);
-
-        ack.acknowledge();
     }
 }

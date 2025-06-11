@@ -42,7 +42,7 @@ public class KafkaConsumerConfig {
 
         // 재시도 시마다 로그 남기기
         handler.setRetryListeners((record, ex, attempt) ->
-                log.warn(
+                log.error(
                         "Kafka 레코드 재시도 시도 #{} → topic={} / partition={} / offset={} / error={}",
                         attempt,
                         record.topic(),
