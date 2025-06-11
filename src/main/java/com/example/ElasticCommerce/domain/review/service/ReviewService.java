@@ -67,13 +67,16 @@ public class ReviewService {
             throw new BadRequestException(ReviewExceptionType.INVALID_RATING);
         }
 
+        LocalDateTime now = LocalDateTime.now();
+
         // 1) DB에 저장
         Review review = Review.builder()
                               .productId(req.productId())
                               .userId(req.userId())
                               .title(req.title())
                               .rating(req.rating())
-                              .comment(req.comment())
+                              .createdAt(now)
+                              .modifiedAt(now)
                               .build();
         reviewRepository.save(review);
 
