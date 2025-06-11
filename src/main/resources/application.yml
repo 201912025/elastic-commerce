@@ -10,7 +10,7 @@ spring:
   application:
     name: elastic-commerce
   datasource:
-    url: jdbc:mysql://elasticsearch.c3o8g2ymaiuh.ap-northeast-2.rds.amazonaws.com:3306/elastic_commerce?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Seoul
+    url: jdbc:mysql://elasticsearch.c3o8g2ymaiuh.ap-northeast-2.rds.amazonaws.com:3306/elastic_commerce?useUnicode=true&serverTimezone=Asia/Seoul
     username: admin
     password: asdf2003
     driver-class-name: com.mysql.cj.jdbc.Driver
