@@ -13,7 +13,6 @@ import com.example.ElasticCommerce.domain.coupon.repository.CouponRepository;
 import com.example.ElasticCommerce.domain.coupon.repository.CouponStockRepository;
 import com.example.ElasticCommerce.domain.coupon.repository.UserCouponRepository;
 import com.example.ElasticCommerce.domain.coupon.service.kafka.CouponKafkaProducerService;
-import com.example.ElasticCommerce.domain.user.entity.User;
 import com.example.ElasticCommerce.domain.user.exception.UserExceptionType;
 import com.example.ElasticCommerce.domain.user.repository.UserRepository;
 import com.example.ElasticCommerce.global.exception.type.BadRequestException;
@@ -88,10 +87,6 @@ public class CouponService {
         // 3) 중복 발급 검사
         userCouponRepository.findByUserIdAndCouponCode(userId, couponCode)
                             .ifPresent(uc -> { throw new BadRequestException(CouponExceptionType.COUPON_DUPLICATE_ISSUE); });
-
-        // 4) User 조회(없으면 예외)
-        User user = userRepository.findById(userId)
-                                  .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
 
         // ─── 여기서 **무조건** SETNX(setIfAbsent)로 “한 번만 초기화”를 시도한다.
         //     기존의 existsKey+setInitialStock을 모두 대체.
