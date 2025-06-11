@@ -74,14 +74,14 @@ public class ReviewService {
                               .build();
         reviewRepository.save(review);
 
-        reviewKafkaProducerService.sendReview("request-topic", ReviewElasticDTO.from(review, "CREATE"));
+        reviewKafkaProducerService.sendReview("review-topic", ReviewElasticDTO.from(review, "CREATE"));
 
         TransactionSynchronizationManager.registerSynchronization(
                 new TransactionSynchronizationAdapter() {
                     @Override
                     public void afterCommit() {
                         reviewKafkaProducerService.sendProductRating(
-                                "request-rating-topic",
+                                "review-rating-topic",
                                 new ProductRatingKafkaDTO(review.getProductId())
                         );
                         log.info("[리뷰등록] 평점갱신 메시지 전송: productId={}", review.getProductId());
@@ -106,14 +106,14 @@ public class ReviewService {
         review.update(req.title(), req.rating(), req.comment());
         reviewRepository.save(review);
 
-        reviewKafkaProducerService.sendReview("request-topic", ReviewElasticDTO.from(review, "UPDATE"));
+        reviewKafkaProducerService.sendReview("review-topic", ReviewElasticDTO.from(review, "UPDATE"));
 
         TransactionSynchronizationManager.registerSynchronization(
                 new TransactionSynchronizationAdapter() {
                     @Override
                     public void afterCommit() {
                         reviewKafkaProducerService.sendProductRating(
-                                "request-rating-topic",
+                                "review-rating-topic",
                                 new ProductRatingKafkaDTO(review.getProductId())
                         );
                         log.info("[리뷰수정] 평점갱신 메시지 전송: productId={}", review.getProductId());
@@ -132,14 +132,14 @@ public class ReviewService {
                                         .orElseThrow(() -> new NotFoundException(ReviewExceptionType.REVIEW_NOT_FOUND));
         reviewRepository.delete(review);
 
-        reviewKafkaProducerService.sendReview("request-topic", ReviewElasticDTO.from(review, "DELETE"));
+        reviewKafkaProducerService.sendReview("review-topic", ReviewElasticDTO.from(review, "DELETE"));
 
         TransactionSynchronizationManager.registerSynchronization(
                 new TransactionSynchronizationAdapter() {
                     @Override
                     public void afterCommit() {
                         reviewKafkaProducerService.sendProductRating(
-                                "request-rating-topic",
+                                "review-rating-topic",
                                 new ProductRatingKafkaDTO(review.getProductId())
                         );
                         log.info("[리뷰삭제] 평점갱신 메시지 전송: productId={}", review.getProductId());

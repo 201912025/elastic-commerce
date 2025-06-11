@@ -20,8 +20,8 @@ public class ProductRatingConsumer {
     private final ObjectMapper objectMapper;
 
     @KafkaListener(
-            topics           = "request-rating-topic",
-            groupId          = "request-rating-group",
+            topics           = "review-rating-topic",
+            groupId          = "review-rating-group",
             containerFactory = "kafkaListenerContainerFactory",
             concurrency      = "3"
     )

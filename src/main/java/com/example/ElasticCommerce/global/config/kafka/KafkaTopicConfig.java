@@ -43,7 +43,7 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic reviewTopic() {
-        return TopicBuilder.name("request-topic")
+        return TopicBuilder.name("review-topic")
                            .partitions(6)
                            .replicas(1)
                            .build();
@@ -51,7 +51,7 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic reviewDltTopic() {
-        return TopicBuilder.name("request-topic.DLT")
+        return TopicBuilder.name("review-topic.DLT")
                            .partitions(6)
                            .replicas(1)
                            .build();
@@ -59,7 +59,7 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic reviewRatingTopic() {
-        return TopicBuilder.name("request-rating-topic")
+        return TopicBuilder.name("review-rating-topic")
                            .partitions(3)
                            .replicas(1)
                            .build();
@@ -67,7 +67,7 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic reviewRatingDltTopic() {
-        return TopicBuilder.name("request-rating-topic.DLT")
+        return TopicBuilder.name("review-rating-topic.DLT")
                            .partitions(3)
                            .replicas(1)
                            .build();

@@ -23,8 +23,8 @@ public class ReviewElasticConsumer {
     private final ObjectMapper objectMapper;
 
     @KafkaListener(
-            topics           = "request-topic",
-            groupId          = "request-group",
+            topics           = "review-topic",
+            groupId          = "review-group",
             containerFactory = "kafkaListenerContainerFactory",
             concurrency      = "6"
     )
