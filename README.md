@@ -6,9 +6,9 @@ ElasticCommerce는 엘라스틱서치, 카프카를 활용한 e-커머스 플랫
 - **언어**: Java 17
 - **프레임워크**: Spring Boot
 - **데이터베이스 ORM**: Spring Data JPA, Mysql(AWS RDS)
-- **분산 잠금**: Redis
-- **검색 엔진**: Elasticsearch
-- **메시징 시스템**: Apache Kafka
+- **분산 잠금**: Redis(AWS ElasticCache)
+- **검색 엔진**: Elasticsearch(Elastic Cloud)
+- **메시징 시스템**: Apache Kafka(AWS Msk)
 - **인증/인가**: JWT
 
 ---
