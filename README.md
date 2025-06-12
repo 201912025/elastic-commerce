@@ -68,5 +68,8 @@ ElasticCommerce는 엘라스틱서치, 카프카를 활용한 e-커머스 플랫
 - **정보 수정**: `POST /api/users/update`
 - **탈퇴**: `POST /api/users/delete`
 
----
+## 아키텍쳐
+
+![아키텍처 다이어그램](https://github.com/201912025/elastic-commerce/blob/main/docs/images/aws-architecture.png)
+![아키텍처 세부 다이어그램](https://github.com/201912025/elastic-commerce/blob/main/docs/images/aws-architecture-out.png)
 
