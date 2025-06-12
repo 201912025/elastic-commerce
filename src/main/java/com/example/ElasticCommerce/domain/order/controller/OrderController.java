@@ -14,7 +14,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.net.URI;
 
 @RestController
-@RequestMapping("/users/{userId}/orders")
+@RequestMapping("/api/users/{userId}/orders")
 @RequiredArgsConstructor
 public class OrderController {
 

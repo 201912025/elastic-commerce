@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/users/{userId}/orders/{orderId}/payments")
+@RequestMapping("/api/users/{userId}/orders/{orderId}/payments")
 @RequiredArgsConstructor
 public class PaymentController {
 
