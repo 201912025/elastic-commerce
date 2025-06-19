@@ -1,10 +1,12 @@
 package com.example.ElasticCommerce.domain.review.service;
 
 import co.elastic.clients.elasticsearch._types.query_dsl.*;
+import com.example.ElasticCommerce.domain.product.entity.Product;
 import com.example.ElasticCommerce.domain.product.exception.ProductExceptionType;
 import com.example.ElasticCommerce.domain.product.repository.ProductRepository;
 import com.example.ElasticCommerce.domain.review.dto.kafka.ProductRatingKafkaDTO;
 import com.example.ElasticCommerce.domain.review.dto.kafka.ReviewElasticDTO;
+import com.example.ElasticCommerce.domain.review.dto.response.ReviewDetailResponse;
 import com.example.ElasticCommerce.domain.review.dto.response.ReviewResponse;
 import com.example.ElasticCommerce.domain.review.dto.request.CreateReviewRequest;
 import com.example.ElasticCommerce.domain.review.dto.request.UpdateReviewRequest;
@@ -13,6 +15,7 @@ import com.example.ElasticCommerce.domain.review.entity.ReviewDocument;
 import com.example.ElasticCommerce.domain.review.exception.ReviewExceptionType;
 import com.example.ElasticCommerce.domain.review.repository.*;
 import com.example.ElasticCommerce.domain.review.service.kafka.ReviewKafkaProducerService;
+import com.example.ElasticCommerce.domain.user.entity.User;
 import com.example.ElasticCommerce.domain.user.exception.UserExceptionType;
 import com.example.ElasticCommerce.domain.user.repository.UserRepository;
 import com.example.ElasticCommerce.global.exception.type.BadRequestException;
@@ -32,6 +35,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,22 +49,48 @@ public class ReviewService {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
 
-    public ReviewResponse getReview(Long id) {
+    public ReviewDetailResponse getReview(Long id) {
         log.info("[리뷰조회] ID={} 조회 시작", id);
         Review review = reviewRepository.findById(id)
                                         .orElseThrow(() -> new NotFoundException(ReviewExceptionType.REVIEW_NOT_FOUND));
+        Product product = productRepository.findById(review.getProductId())
+                                           .orElseThrow(() -> new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND));
+        User user = userRepository.findById(review.getUserId())
+                                  .orElseThrow(() -> new NotFoundException(UserExceptionType.NOT_FOUND_USER));
         log.info("[리뷰조회] ID={} 조회 완료", id);
-        return ReviewResponse.from(review);
+        return ReviewDetailResponse.from(review, product, user.getUsername());
     }
 
-    public List<ReviewResponse> getReviewsByProduct(Long productId) {
+    public List<ReviewDetailResponse> getReviewsByProduct(Long productId) {
         log.info("[상품별리뷰조회] 상품ID={} 리뷰 리스트 조회 시작", productId);
-        List<ReviewResponse> list = reviewRepository.findByProductId(productId).stream()
-                                                    .map(ReviewResponse::from)
-                                                    .collect(Collectors.toList());
+
+        Product product = productRepository.findById(productId)
+                                           .orElseThrow(() -> new NotFoundException(ProductExceptionType.PRODUCT_NOT_FOUND));
+
+        List<Review> reviews = reviewRepository.findByProductId(productId);
+
+        List<Long> userIds = reviews.stream()
+                                    .map(Review::getUserId)
+                                    .distinct()
+                                    .toList();
+
+        Map<Long, String> userNameMap = userRepository.findAllById(userIds).stream()
+                                                      .collect(Collectors.toMap(User::getUserId, User::getUsername));
+
+        List<ReviewDetailResponse> list = reviews.stream()
+                                                 .map(review -> {
+                                                     String userName = userNameMap.get(review.getUserId());
+                                                     if (userName == null) {
+                                                         throw new NotFoundException(UserExceptionType.NOT_FOUND_USER);
+                                                     }
+                                                     return ReviewDetailResponse.from(review, product, userName);
+                                                 })
+                                                 .collect(Collectors.toList());
+
         log.info("[상품별리뷰조회] 상품ID={} 리뷰 {}건 조회 완료", productId, list.size());
         return list;
     }
+
 
     @Transactional
     public ReviewResponse createReview(CreateReviewRequest req) {
