@@ -38,6 +38,7 @@ public class UserService {
                         .password((bCryptPasswordEncoder.encode(joinServiceDTO.getPassword())))
                         .role("USER")
                         .email(joinServiceDTO.getEmail())
+                        .phoneNumber(joinServiceDTO.getPhoneNumber())
                         .build();
 
         userRepository.save(user);

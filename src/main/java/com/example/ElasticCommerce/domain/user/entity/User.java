@@ -29,13 +29,16 @@ public class User extends BaseEntity {
 
     private String birthDay;
 
+    private String phoneNumber;
+
     @Builder
-    public User(String username, String email, String password, String role, String birthDay) {
+    public User(String username, String email, String password, String role, String birthDay, String phoneNumber) {
         this.username = username;
         this.email = email;
         this.password = password;
         this.role = role;
         this.birthDay = birthDay;
+        this.phoneNumber = phoneNumber;
     }
 
     public void setEmail(String email) {

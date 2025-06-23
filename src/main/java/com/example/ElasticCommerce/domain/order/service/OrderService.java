@@ -1,5 +1,7 @@
 package com.example.ElasticCommerce.domain.order.service;
 
+import com.example.ElasticCommerce.domain.notification.dto.NotificationRequest;
+import com.example.ElasticCommerce.domain.notification.service.NotificationProducerService;
 import com.example.ElasticCommerce.domain.order.dto.request.CreateOrderRequest;
 import com.example.ElasticCommerce.domain.order.dto.request.UpdateOrderStatusRequest;
 import com.example.ElasticCommerce.domain.order.dto.response.OrderDto;
@@ -22,6 +24,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 
@@ -34,6 +38,8 @@ public class OrderService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
+    private final NotificationProducerService notificationService;
+
 
     @Transactional
     public OrderDto createOrder(Long userId, CreateOrderRequest req) {
@@ -55,6 +61,32 @@ public class OrderService {
 
         orderRepository.save(order);
         log.info("주문 생성 완료: orderId={}, userId={}", order.getId(), userId);
+
+        long totalPrice = items.stream()
+                               .mapToLong(item -> item.getQuantity() * item.getProduct().getPrice())
+                               .sum();
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronizationAdapter() {
+                    @Override
+                    public void afterCommit() {
+                        notificationService.sendAll(
+                                                   new NotificationRequest(
+                                                           order.getId(),
+                                                           "ORDER_COMPLETED",
+                                                           user.getEmail(),
+                                                           totalPrice
+                                                   )
+                                           )
+                                           .subscribe(
+                                                   null,
+                                                   e -> log.error("Kafka 알림 최종 실패 (주문 생성): orderId={}, error={}",
+                                                           order.getId(), e.getMessage())
+                                           );
+                    }
+                }
+        );
+
         return order.toDto();
     }
 
@@ -101,6 +133,10 @@ public class OrderService {
             throw new BadRequestException(OrderExceptionType.ORDER_CANNOT_CANCEL);
         }
 
+        long totalPrice = order.getItems().stream()
+                               .mapToLong(item -> item.getQuantity() * item.getProduct().getPrice())
+                               .sum();
+
         order.getItems().forEach(item -> {
             Product product = item.getProduct();
             int restored = product.getStockQuantity() + item.getQuantity();
@@ -110,6 +146,29 @@ public class OrderService {
 
         order.cancel();
         log.info("주문 취소 완료: orderId={}", orderId);
+
+        User user = order.getUser();
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronizationAdapter() {
+                    @Override
+                    public void afterCommit() {
+                        notificationService.sendAll(
+                                                   new NotificationRequest(
+                                                           order.getId(),
+                                                           "ORDER_CANCELLED",
+                                                           user.getEmail(),
+                                                           totalPrice
+                                                   )
+                                           )
+                                           .subscribe(
+                                                   null,
+                                                   e -> log.error("Kafka 알림 최종 실패 (주문 취소): orderId={}, error={}",
+                                                           order.getId(), e.getMessage())
+                                           );
+                    }
+                }
+        );
+
         return order.toDto();
     }
 

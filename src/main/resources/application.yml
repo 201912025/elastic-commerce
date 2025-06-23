@@ -56,3 +56,7 @@ logging:
     org.elasticsearch.client: INFO
     org.springframework.cache: trace
     root: INFO
+
+notification:
+  service:
+    base-url: http://localhost:8081
